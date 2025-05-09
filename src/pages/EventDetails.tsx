@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import events from '../components/eventsData';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAntiCoinBalance } from '@/hooks/useAntiCoinBalance';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +25,10 @@ export default function EventDetails() {
   const event = events.find(e => e.id === Number(id));
   const [registering, setRegistering] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const { publicKey } = useWallet();
   const balance = useAntiCoinBalance(publicKey?.toBase58());
+  const { user } = useAuth();
 
   useEffect(() => {
     // If the modal is closed, ensure registering is false
@@ -33,6 +36,22 @@ export default function EventDetails() {
       setRegistering(false);
     }
   }, [showConfirmModal]);
+
+  // Check if already registered
+  useEffect(() => {
+    const checkRegistration = async () => {
+      if (!user || !event) return;
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('event_id', event.id)
+        .maybeSingle();
+      if (data) setAlreadyRegistered(true);
+      else setAlreadyRegistered(false);
+    };
+    checkRegistration();
+  }, [user, event]);
 
   if (!event) {
     return (
@@ -48,33 +67,46 @@ export default function EventDetails() {
     setShowConfirmModal(true);
   };
 
-  const handleRegistrationConfirm = () => {
+  const handleRegistrationConfirm = async () => {
     setShowConfirmModal(false); // Close modal first
 
+    if (!user) {
+      toast.error('You must be signed in to register.');
+      setRegistering(false);
+      return;
+    }
     if (balance === null) {
       toast.error("Could not retrieve your AntiCoin balance. Please try again.");
       setRegistering(false);
       return;
     }
-
     if (balance < event.price) {
       toast.error('Insufficient AntiCoins to register for this event.');
       setRegistering(false);
       return;
     }
-
-    // Simulate AntiCoin deduction
-    // In a real app, you would call a backend service here
-    console.log(`Simulating deduction of ${event.price} AntiCoins for ${publicKey?.toBase58()}`);
-    
-    // Placeholder for actual deduction logic
-    const simulatedDeductionSuccess = true; // Assume success for now
-
-    if (simulatedDeductionSuccess) {
-      toast.success(`Successfully registered for ${event.title}! ${event.price} AntiCoins would be deducted.`);
-      // Potentially update balance locally or refetch, though useAntiCoinBalance should handle refetching if dependencies change
+    // Check again if already registered (race condition prevention)
+    const { data: existing, error: checkErr } = await supabase
+      .from('event_registrations')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('event_id', event.id)
+      .maybeSingle();
+    if (existing) {
+      toast('Already registered for this event.');
+      setAlreadyRegistered(true);
+      setRegistering(false);
+      return;
+    }
+    // Register
+    const { error } = await supabase
+      .from('event_registrations')
+      .insert({ event_id: event.id, user_id: user.id, registered_at: new Date().toISOString() });
+    if (error) {
+      toast.error('Registration failed. Please try again.');
     } else {
-      toast.error("Registration failed. Please try again.");
+      toast.success(`Successfully registered for ${event.title}! ${event.price} AntiCoins would be deducted.`);
+      setAlreadyRegistered(true);
     }
     setRegistering(false);
   };
@@ -110,9 +142,9 @@ export default function EventDetails() {
                 <Button
                   className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold"
                   onClick={handleOpenModal}
-                  disabled={registering || publicKey === null} 
+                  disabled={registering || alreadyRegistered || publicKey === null}
                 >
-                  {publicKey === null ? "Connect Wallet to Register" : (registering && !showConfirmModal ? 'Processing...' : `Register for ${event.price} AntiCoins`)}
+                  {alreadyRegistered ? 'Registered' : (publicKey === null ? "Connect Wallet to Register" : (registering && !showConfirmModal ? 'Processing...' : `Register for ${event.price} AntiCoins`))}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
