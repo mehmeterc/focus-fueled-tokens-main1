@@ -86,17 +86,6 @@ const Navbar = () => {
             {/* Solana wallet connect button always visible */}
             <SolanaWalletButton />
           </div>
-          {/* HamburgerMenu for community users on mobile */}
-          {user && isCommunity() && (
-            <div className="md:hidden">
-              <HamburgerMenu />
-            </div>
-          )}
-          {user && isMerchant() && (
-            <div className="md:hidden">
-              <MerchantHamburgerMenu />
-            </div>
-          )}
           {/* Existing mobile menu for others */}
         </div>
         
