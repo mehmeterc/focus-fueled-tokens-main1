@@ -1,5 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 
 export default function Profile() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
 
   // Change password state
   const [newPassword, setNewPassword] = useState('');
@@ -44,6 +46,9 @@ export default function Profile() {
 
   return (
     <div className="container mx-auto max-w-lg p-4">
+      <Button onClick={() => navigate(-1)} variant="outline" className="mb-4">
+        &larr; Back
+      </Button>
       <h1 className="text-2xl font-bold mb-6 text-center">Profile</h1>
       <div className="mb-8 space-y-2">
         <div>
