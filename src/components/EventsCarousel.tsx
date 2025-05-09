@@ -3,19 +3,81 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import events from './eventsData';
+import events, { Event } from './eventsData'; // Make sure Event type is exported from eventsData
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/supabaseClient'; // Import Supabase client
+import { useAuth } from '@/context/AuthContext'; // Import useAuth hook
+import { useAntiCoinBalance } from '@/hooks/useAntiCoinBalance'; // Import useAntiCoinBalance hook
 
 export default function EventsCarousel() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const navigate = useNavigate();
+  const { user } = useAuth(); // Get current user
+  const { balance, fetchBalance: refreshAntiCoinBalance } = useAntiCoinBalance(user?.id); // Get user's AntiCoin balance
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(new Set());
+  const [loadingRegistration, setLoadingRegistration] = useState<Record<string, boolean>>({});
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
 
-  const handleRegister = (event: typeof events[0]) => {
-    toast.success(`Registered for ${event.title}!  -${event.price} AntiCoins`);
+  const handleRegister = async (event: Event) => {
+    if (!user) {
+      toast.error('Please log in to register for events.');
+      navigate('/login'); // Redirect to login page if not logged in
+      return;
+    }
+
+    if (typeof balance === 'number' && balance < event.price) {
+      toast.error('Not enough AntiCoins to register for this event.');
+      return;
+    }
+
+    setLoadingRegistration(prev => ({ ...prev, [event.id]: true }));
+
+    try {
+      // Check if already registered
+      const { data: existingRegistration, error: checkError } = await supabase
+        .from('event_registrations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('event_id', event.id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingRegistration) {
+        toast.info('You are already registered for this event.');
+        setRegisteredEventIds(prev => new Set(prev).add(event.id));
+        return;
+      }
+
+      // Deduct AntiCoins (This should ideally be a Supabase function for atomicity)
+      const newBalance = (balance || 0) - event.price;
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({ anti_coin_balance: newBalance })
+        .eq('id', user.id);
+
+      if (balanceError) throw balanceError;
+
+      // Create registration
+      const { error: registrationError } = await supabase
+        .from('event_registrations')
+        .insert([{ user_id: user.id, event_id: event.id, registration_date: new Date().toISOString() }]);
+
+      if (registrationError) throw registrationError;
+
+      toast.success(`Successfully registered for ${event.title}! -${event.price} AntiCoins`);
+      setRegisteredEventIds(prev => new Set(prev).add(event.id));
+      await refreshAntiCoinBalance?.(); // Refresh AntiCoin balance display
+
+    } catch (error: any) {
+      console.error('Registration failed:', error);
+      toast.error(`Registration failed: ${error.message || 'Please try again.'}`);
+    } finally {
+      setLoadingRegistration(prev => ({ ...prev, [event.id]: false }));
+    }
   };
 
   const scrollTo = useCallback((index: number) => {
@@ -46,6 +108,24 @@ export default function EventsCarousel() {
       emblaApi.off('select', onSelect);
     };
   }, [emblaApi]);
+
+  // Fetch existing registrations on mount
+  useEffect(() => {
+    const fetchRegistrations = async () => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .select('event_id')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching existing registrations:', error);
+      } else {
+        setRegisteredEventIds(new Set(data.map(r => r.event_id)));
+      }
+    };
+    fetchRegistrations();
+  }, [user]);
 
   return (
     <section className="mb-8">
@@ -99,12 +179,17 @@ export default function EventsCarousel() {
                   </div>
                   <h3 className="text-lg font-bold text-antiapp-purple mb-1">{event.title}</h3>
                   <div className="text-xs text-gray-500 mb-2">By {event.organizer} @ {event.location}</div>
-                  <div className="text-sm text-gray-700 mb-4 flex-1">{event.description}</div>
+                  <p className="text-sm text-gray-600 mb-3 flex-1 line-clamp-3">{event.description}</p>
                   <Button
-                    className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold mt-auto"
-                    onClick={e => { e.stopPropagation(); handleRegister(event); }}
+                    variant="default"
+                    className="w-full mt-auto bg-antiapp-purple hover:bg-antiapp-purple/90 text-white transition-colors duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click navigation
+                      handleRegister(event);
+                    }}
+                    disabled={registeredEventIds.has(event.id) || loadingRegistration[event.id]}
                   >
-                    Register
+                    {loadingRegistration[event.id] ? 'Registering...' : (registeredEventIds.has(event.id) ? 'Registered' : 'Register Now')}
                   </Button>
                 </div>
               </div>
