@@ -61,79 +61,54 @@ export default function RegisteredEvents() {
         throw new Error('Event not found. Please try again.');
       }
 
-      // First, get current user profile to get their balance
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error getting profile:', profileError);
-        throw new Error('Could not get your current balance');
-      }
-
-      // If there's no balance field, show an error with details for debugging
-      if (!profileData) {
-        console.error('Profile data not found:', profileData);
-        throw new Error('User profile not found');
-      }
-
-      // Find out what the balance field is called
-      let balanceField = '';
-      let currentBalance = 0;
-
-      // Look for different possible balance field names
-      if ('balance' in profileData) {
-        balanceField = 'balance';
-        currentBalance = profileData.balance;
-      } else if ('anti_coin_balance' in profileData) {
-        balanceField = 'anti_coin_balance';
-        currentBalance = profileData.anti_coin_balance;
-      } else if ('anticoins' in profileData) {
-        balanceField = 'anticoins';
-        currentBalance = profileData.anticoins;
-      } else if ('anticoin_balance' in profileData) {
-        balanceField = 'anticoin_balance';
-        currentBalance = profileData.anticoin_balance;
-      } else {
-        // If we can't find a balance field, log all field names for debugging
-        console.error('Available profile fields:', Object.keys(profileData));
-        throw new Error('Could not find balance field in profile');
-      }
-
-      // Calculate new balance
-      const newBalance = (currentBalance || 0) + event.price;
-      console.log(`Refunding ${event.price} coins. Current balance: ${currentBalance}, New balance: ${newBalance}`);
-
-      // Now update the balance with the exact field name we found
-      const updateData: any = {};
-      updateData[balanceField] = newBalance;
-
-      // Delete the registration and update the balance in a transaction-like approach
+      // STEP 1: Delete the event registration first
       const { error: deleteError } = await supabase
         .from('event_registrations')
         .delete()
         .eq('user_id', user.id)
         .eq('event_id', eventId.toString());
 
-      if (deleteError) throw deleteError;
-
-      // Update balance AFTER successful deletion
+      if (deleteError) {
+        console.error('Error deleting registration:', deleteError);
+        throw new Error('Could not cancel registration.');
+      }
+      
+      // STEP 2: Get current balance first
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (profileError || !profileData) {
+        console.error('Error fetching profile:', profileError || 'No profile data');
+        toast.warning('Registration canceled, but AntiCoins refund failed. Please contact support.');
+        return;
+      }
+      
+      console.log('Profile data fields:', Object.keys(profileData));
+      
+      // STEP 3: Directly update the anti_coin_balance
+      const currentBalance = profileData.anti_coin_balance || 0;
+      const newBalance = currentBalance + event.price;
+      
+      console.log(`Refunding ${event.price} coins. Current: ${currentBalance}, New: ${newBalance}`);
+      
+      // Update the balance with a direct SQL query
       const { error: updateError } = await supabase
         .from('profiles')
-        .update(updateData)
+        .update({ anti_coin_balance: newBalance })
         .eq('id', user.id);
-
+      
       if (updateError) {
-        console.error('Error updating balance:', updateError);
-        // Still continue since registration was successfully canceled
-        toast.warning('Registration canceled but there was an issue refunding your AntiCoins. Please contact support.');
+        console.error('Balance update failed:', updateError);
+        toast.warning('Registration canceled, but AntiCoins refund failed. Please contact support.');
       } else {
-        toast.success(`Event registration cancelled! ${event.price} AntiCoins have been refunded.`);
+        // Success! Show a confirmation with details
+        toast.success(`Registration for ${event.title} canceled! ${event.price} AntiCoins have been refunded.`);
       }
-
-      // Update UI
+      
+      // STEP 3: Update UI
       setRegisteredEvents(prev => prev.filter(e => e.id !== eventId));
     } catch (error: any) {
       console.error('Error cancelling registration:', error);
