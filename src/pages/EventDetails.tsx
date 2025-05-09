@@ -131,14 +131,14 @@ export default function EventDetails() {
       // 2. Create registration record FIRST to ensure we don't double-charge the user
       // Only deduct balance if registration succeeds
       const { error: regErr } = await supabase
-        .from('event_registrations')
-        .insert([{
-          user_id: user.id,
-          event_id: String(event.id), // Convert to string to match database expectations
-          registration_date: new Date().toISOString(),
-          price_paid: event.price
-        }]);
-        
+      .from('event_registrations')
+      .insert([{
+        user_id: user.id,
+        event_id: String(event.id),
+        registration_date: new Date().toISOString()
+        // No price_paid field as it doesn't exist in the schema
+      }]);
+      
       if (regErr) {
         console.error('Registration insert failed:', regErr);
         throw new Error(`Couldn't create registration: ${regErr.message}`);
