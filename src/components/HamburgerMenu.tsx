@@ -59,27 +59,20 @@ export default function HamburgerMenu() {
             {/* 2. Select Wallet */}
             <li>
               <button 
-                className="w-full text-left py-2 px-3 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-medium rounded flex items-center justify-between"
+                className="w-full text-center py-3 px-6 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-bold rounded-xl shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
                 onClick={() => {
                   setOpen(false);
                   setVisible(true);
                 }}
               >
-                <span>Select Wallet</span>
-                {/* Wallet icon */}
-                <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="14" cy="14" r="12" fill="#FDE68A" stroke="#F59E42" strokeWidth="2" />
-                  <circle cx="14" cy="14" r="8" fill="#FDE047" stroke="#F59E42" strokeWidth="1.5" />
-                  <text x="14" y="18" textAnchor="middle" fontSize="13" fill="#B45309" fontWeight="bold">¢</text>
-                </svg>
+                Select Wallet
               </button>
             </li>
             {/* 3. Anti Coins */}
             <li>
               <Link to="/anti-coins" className="flex items-center gap-2 py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
                 Anti Coins
-                {/* Coin icon */}
-                <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block">
                   <circle cx="14" cy="14" r="12" fill="#FDE68A" stroke="#F59E42" strokeWidth="2" />
                   <circle cx="14" cy="14" r="8" fill="#FDE047" stroke="#F59E42" strokeWidth="1.5" />
                   <text x="14" y="18" textAnchor="middle" fontSize="13" fill="#B45309" fontWeight="bold">¢</text>
