@@ -8,8 +8,6 @@ import { toast as sonnerToast } from 'sonner';
 type Profile = {
   id: string;
   role: 'merchant' | 'community';
-  wallet?: string; // Optional wallet field
-  payment?: string; // Optional payment field
 };
 
 type AuthContextType = {
@@ -38,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, wallet, payment') // Added wallet and payment
+        .select('id, role')
         .eq('id', userId)
         .single();
 
