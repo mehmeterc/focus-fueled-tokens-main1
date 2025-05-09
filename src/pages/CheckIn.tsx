@@ -7,12 +7,13 @@ import QRDisplay from '@/components/QRDisplay';
 import QRScanner from '@/components/QRScanner';
 import SessionTracker from '@/components/SessionTracker';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import Coin from '@/components/Coin';
 import { useToast } from '@/hooks/use-toast';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { QrCode, LogOut, Timer } from 'lucide-react';
+import { QrCode, LogOut, Timer, Coins } from 'lucide-react';
 
 interface Cafe {
   id: string;
@@ -30,6 +31,8 @@ const CheckIn = () => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [earnedCoins, setEarnedCoins] = useState(0);
+  const [progressToNextCoin, setProgressToNextCoin] = useState(0);
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrCodeType, setQrCodeType] = useState<'check-in' | 'check-out'>('check-in');
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -115,11 +118,57 @@ const CheckIn = () => {
         const now = new Date();
         const diffInSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
         setElapsedTime(diffInSeconds);
+        
+        // Update earned coins
+        const coins = calculateEarnedCoins(diffInSeconds);
+        setEarnedCoins(coins);
+        
+        // Update progress to next coin
+        const progress = calculateProgressToNextCoin(diffInSeconds);
+        setProgressToNextCoin(progress);
       }
     } catch (error) {
       console.error('Error in checkExistingCheckIn:', error);
     }
   }
+
+  // Calculate Anti coins earned based on time and USDC rate
+  const calculateEarnedCoins = (seconds: number) => {
+    if (!cafe?.usdc_per_hour) return 0;
+    
+    // 1 Anti coin for every 2 USDC spent
+    const usdcPerSecond = cafe.usdc_per_hour / 3600; // USDC per second
+    const secondsFor1AntiCoin = 2 / usdcPerSecond; // Seconds needed for 1 Anti coin
+    
+    return Math.floor(seconds / secondsFor1AntiCoin);
+  };
+
+  // Calculate progress to next Anti coin (0-100)
+  const calculateProgressToNextCoin = (seconds: number) => {
+    if (!cafe?.usdc_per_hour) return 0;
+    
+    const usdcPerSecond = cafe.usdc_per_hour / 3600;
+    const secondsFor1AntiCoin = 2 / usdcPerSecond;
+    
+    const totalCoins = seconds / secondsFor1AntiCoin;
+    const fractionPart = totalCoins - Math.floor(totalCoins);
+    
+    return Math.min(Math.floor(fractionPart * 100), 100);
+  };
+
+  // Calculate minutes until next coin
+  const calculateMinutesToNextCoin = (seconds: number) => {
+    if (!cafe?.usdc_per_hour) return 0;
+    
+    const usdcPerSecond = cafe.usdc_per_hour / 3600;
+    const secondsFor1AntiCoin = 2 / usdcPerSecond;
+    
+    const totalCoins = seconds / secondsFor1AntiCoin;
+    const fractionPart = totalCoins - Math.floor(totalCoins);
+    const secondsRemaining = (1 - fractionPart) * secondsFor1AntiCoin;
+    
+    return Math.ceil(secondsRemaining / 60);
+  };
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
@@ -365,9 +414,39 @@ const CheckIn = () => {
                       <p className="text-3xl font-bold text-antiapp-teal">{formatTime(elapsedTime)}</p>
                     </div>
                     
-                    <p className="mb-4 text-gray-600">
-                      You'll earn 1 Anti coin for every 5 minutes of focus time.
-                    </p>
+                    <div className="text-center py-6">
+                      <div className="flex justify-center items-center bg-yellow-50 rounded-lg p-4 shadow-inner">
+                        <div className="flex items-center">
+                          <Coins className="h-5 w-5 text-yellow-600 mr-2" />
+                          <div>
+                            <div className="text-base font-medium">Earned Anti Coins: <span className="text-xl text-yellow-700 font-bold">{earnedCoins}</span></div>
+                            <div className="text-xs text-gray-600 mt-1">Rate: {cafe?.usdc_per_hour ? `1 Anti coin per ${(2 / cafe.usdc_per_hour * 60).toFixed(1)} minutes` : 'Rate not set'}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Progress to next coin */}
+                      <div className="mt-4 mb-1">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>Progress to next Anti coin</span>
+                          <span>{calculateMinutesToNextCoin(elapsedTime)} min remaining</span>
+                        </div>
+                        <Progress value={progressToNextCoin} className="h-2">
+                          <div 
+                            className="absolute h-full bg-green-500 transition-all duration-500 ease-in-out" 
+                            style={{width: `${progressToNextCoin}%`, animation: progressToNextCoin > 95 ? 'pulse 1.5s infinite' : 'none'}}
+                          />
+                        </Progress>
+                      </div>
+                      
+                      <style jsx>{`
+                        @keyframes pulse {
+                          0% { opacity: 0.7; }
+                          50% { opacity: 1; }
+                          100% { opacity: 0.7; }
+                        }
+                      `}</style>
+                    </div>
                     
                     {cafe && typeof cafe.usdc_per_hour === 'number' && (
                       <div className="mb-4 p-3 bg-antiapp-teal/10 rounded-lg text-center">
