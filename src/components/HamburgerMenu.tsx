@@ -54,6 +54,28 @@ export default function HamburgerMenu() {
             </button>
           </div>
           <ul className="flex-1 flex flex-col gap-2 px-6 py-4">
+            {/* Select Wallet button as first menu item */}
+            <li>
+              <button 
+                className="w-full text-left py-2 px-3 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-medium rounded flex items-center justify-between"
+                onClick={() => {
+                  setOpen(false);
+                  // Open the wallet selector modal
+                  const walletButton = document.querySelector('.wallet-adapter-button');
+                  if (walletButton instanceof HTMLElement) {
+                    walletButton.click();
+                  }
+                }}
+              >
+                <span>Select Wallet</span>
+                {/* Wallet icon */}
+                <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="14" cy="14" r="12" fill="#FDE68A" stroke="#F59E42" strokeWidth="2" />
+                  <circle cx="14" cy="14" r="8" fill="#FDE047" stroke="#F59E42" strokeWidth="1.5" />
+                  <text x="14" y="18" textAnchor="middle" fontSize="13" fill="#B45309" fontWeight="bold">¢</text>
+                </svg>
+              </button>
+            </li>
             <li>
               <Link to="/cafes" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
                 Home
@@ -75,24 +97,7 @@ export default function HamburgerMenu() {
                 </svg>
               </Link>
             </li>
-            <li>
-              <button 
-                className="w-full text-left py-2 px-3 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-medium rounded flex items-center justify-between"
-                onClick={() => {
-                  setOpen(false);
-                  // This would normally open the wallet selector
-                  const walletButton = document.querySelector('.wallet-adapter-button');
-                  if (walletButton instanceof HTMLElement) {
-                    walletButton.click();
-                  }
-                }}
-              >
-                <span>Select Wallet</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 8H4V6H20V8ZM20 12H4V10H20V12ZM20 16H4V14H20V16ZM20 20H4V18H20V20Z" fill="currentColor" />
-                </svg>
-              </button>
-            </li>
+
             <li>
               <Link to="/profile" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
                 Profile

@@ -87,8 +87,7 @@ const Navbar = () => {
               </div>
             )}
             
-            {/* Solana wallet connect button always visible */}
-            <SolanaWalletButton />
+
           </div>
         </div>
         
