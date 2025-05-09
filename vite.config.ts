@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   define: {
-    'global.Buffer': Buffer, // Define global.Buffer
-    'process.env': {}, // Define process.env as an empty object
+    'global.Buffer': 'globalThis.Buffer', // Make the replacement a string
+    'process.env': JSON.stringify({}), // Stringify process.env for robustness
   }
 }));
