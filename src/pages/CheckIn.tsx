@@ -248,7 +248,19 @@ const CheckIn = () => {
     try {
       const durationInSeconds = elapsedTime;
       const durationInMinutes = Math.floor(durationInSeconds / 60);
-      const earnedCoins = Math.floor(durationInMinutes / 5); // 1 coin per 5 minutes
+      
+      // Calculate earned coins based on 1 AntiCoin per 2 USDC spent
+      let earnedCoins = 0;
+      if (cafe && typeof cafe.usdc_per_hour === 'number') {
+        const hoursFraction = durationInSeconds / 3600; // Convert seconds to hours
+        const usdcSpent = hoursFraction * cafe.usdc_per_hour; // Calculate USDC spent
+        earnedCoins = Math.floor(usdcSpent / 2); // 1 AntiCoin per 2 USDC
+        console.log(`New formula: ${durationInMinutes} minutes = ${usdcSpent.toFixed(2)} USDC = ${earnedCoins} AntiCoins`);
+      } else {
+        // Fallback only if cafe data is missing
+        earnedCoins = Math.floor(durationInMinutes / 5);
+        console.warn('Using fallback formula! Cafe data missing!');
+      }
 
       // Calculate payment
       let usdcPaid = 0;
