@@ -23,15 +23,16 @@ const Navbar = () => {
   return (
     <nav className="bg-white shadow-sm">
       <div className="container mx-auto px-4 py-3">
-        <div className="flex items-center justify-between w-full">
-          {/* Logo */}
-          <Link to="/" className="text-xl font-bold text-antiapp-purple flex items-center mr-6">
-            <span className="text-antiapp-teal">Anti</span>App
-          </Link>
-          {/* Cafes link right after logo */}
-          <Link to="/cafes" className="text-gray-600 hover:text-antiapp-purple transition-colors hidden md:inline-block mr-6">
-            Cafes
-          </Link>
+        <div className="flex items-center w-full justify-between">
+          {/* Logo and navigation links */}
+          <div className="flex items-center gap-3">
+            <Link to="/" className="text-xl font-bold text-antiapp-purple flex items-center mr-4 whitespace-nowrap">
+              <span className="text-antiapp-teal">Anti</span>App
+            </Link>
+            <Link to="/cafes" className="text-gray-600 hover:text-antiapp-purple transition-colors hidden md:inline-block mr-4">
+              Cafes
+            </Link>
+          </div>
           {/* User info/profile badge (centered for desktop) */}
           <div className="flex-1 flex justify-center">
             {user ? (
@@ -71,87 +72,23 @@ const Navbar = () => {
               </Link>
             )}
           </div>
-          {/* HamburgerMenu at far right */}
-          <div className="flex items-center">
-            {user && isCommunity() && (
-              <div className="ml-4">
-                <HamburgerMenu />
-              </div>
-            )}
-            {user && isMerchant() && (
-              <div className="ml-4">
-                <MerchantHamburgerMenu />
-              </div>
-            )}
-            {/* Solana wallet connect button always visible */}
+          {/* Hamburger menu only on mobile */}
+          <div className="block lg:hidden">
+            {user && profile?.role === 'merchant' ? (
+              <MerchantHamburgerMenu />
+            ) : user ? (
+              <HamburgerMenu />
+            ) : null}
+          </div>
+          {/* Wallet button always visible on desktop, fixed at bottom on mobile */}
+          <div className="hidden sm:block ml-4">
             <SolanaWalletButton />
           </div>
-          {/* HamburgerMenu for community users on mobile */}
-          {user && isCommunity() && (
-            <div className="md:hidden">
-              <HamburgerMenu />
-            </div>
-          )}
-          {user && isMerchant() && (
-            <div className="md:hidden">
-              <MerchantHamburgerMenu />
-            </div>
-          )}
-          {/* Existing mobile menu for others */}
         </div>
-        
-        {/* Mobile navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden mt-3 pb-3">
-            <div className="flex flex-col space-y-3">
-              <Link 
-                to="/cafes" 
-                className="text-gray-600 hover:text-antiapp-purple transition-colors py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Cafes
-              </Link>
-              
-              {user ? (
-                <>
-                  {profile && (
-                    <div className="py-2">
-                      <Badge 
-                        variant="outline" 
-                        className={`
-                          text-xs px-2 
-                          ${profile.role === 'merchant' 
-                            ? 'border-antiapp-purple bg-antiapp-purple/10 text-antiapp-purple' 
-                            : 'border-antiapp-teal bg-antiapp-teal/10 text-antiapp-teal'}
-                        `}
-                      >
-                        {profile.role === 'merchant' ? 'Merchant Account' : 'Community Account'}
-                      </Badge>
-                    </div>
-                  )}
-                  
-                  <button
-                    className="text-left text-gray-600 hover:text-antiapp-purple transition-colors py-2"
-                    onClick={() => {
-                      signOut();
-                      setIsMenuOpen(false);
-                    }}
-                  >
-                    Sign Out
-                  </button>
-                </>
-              ) : (
-                <Link 
-                  to="/auth"
-                  className="text-gray-600 hover:text-antiapp-purple transition-colors py-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Sign In
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
+      </div>
+      {/* Wallet button for mobile - stick to bottom of nav */}
+      <div className="block sm:hidden w-full px-4 pb-2">
+        <SolanaWalletButton />
       </div>
     </nav>
   );

@@ -17,9 +17,10 @@ export default function HamburgerMenu() {
     <div className="relative z-50">
       {/* Hamburger Icon */}
       <button
-        className="p-2 focus:outline-none"
+        className="p-3 focus:outline-none rounded-lg hover:bg-antiapp-peach/20 transition"
         aria-label={open ? 'Close menu' : 'Open menu'}
         onClick={() => setOpen(!open)}
+        style={{ minWidth: 44, minHeight: 44 }}
       >
         {!open ? (
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-antiapp-purple h-7 w-7">
@@ -36,8 +37,10 @@ export default function HamburgerMenu() {
       </button>
       {/* Slide-out Menu */}
       <div
-        className={`fixed top-0 right-0 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'} md:rounded-l-lg z-50`}
-        style={{ minWidth: 220 }}
+        className={`fixed top-0 right-0 h-full w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'} md:rounded-l-lg z-50`}
+        style={{ minWidth: 260 }}
+        aria-modal="true"
+        role="dialog"
       >
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -53,7 +56,7 @@ export default function HamburgerMenu() {
               </svg>
             </button>
           </div>
-          <ul className="flex-1 flex flex-col gap-2 px-6 py-4">
+          <ul className="flex-1 flex flex-col gap-3 px-6 py-6">
             <li>
               <Link to="/cafes" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
                 Home
@@ -80,7 +83,7 @@ export default function HamburgerMenu() {
                 Profile
               </Link>
             </li>
-            <li className="mt-4 border-t pt-4">
+            <li className="mt-6 border-t pt-6">
               <button
                 className="w-full text-left py-2 text-red-600 hover:text-red-700 font-medium"
                 onClick={handleSignOut}
@@ -94,9 +97,11 @@ export default function HamburgerMenu() {
       {/* Overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-30 z-40"
+          className="fixed inset-0 bg-black bg-opacity-40 z-40"
           onClick={() => setOpen(false)}
           aria-label="Close menu overlay"
+          tabIndex={0}
+          role="button"
         />
       )}
     </div>
