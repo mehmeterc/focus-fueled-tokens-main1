@@ -135,8 +135,8 @@ export default function EventDetails() {
       .insert([{
         user_id: user.id,
         event_id: String(event.id),
-        registration_date: new Date().toISOString()
-        // No price_paid field as it doesn't exist in the schema
+        registered_at: new Date().toISOString()
+        // Using registered_at which is the correct column name in the database schema
       }]);
       
       if (regErr) {
