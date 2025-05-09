@@ -97,12 +97,24 @@ export default function FocusTimer() {
         const elapsedSeconds = Math.floor((Date.now() - (startTimeRef.current || 0)) / 1000);
         setSessionTime(elapsedSeconds);
         
-        // Calculate earned coins (1 AntiCoin per 2 USDC paid)
+        // Calculate earned coins (1 AntiCoin per 2 USDC paid) - EXACT calculation with NO minimums
         if (cafe?.usdc_per_hour) {
-          // Convert hourly USDC rate to AntiCoins per second
-          const usdc_per_second = cafe.usdc_per_hour / 3600; // USDC per second
-          const anticoins_per_second = usdc_per_second / 2; // 1 AntiCoin per 2 USDC
-          setEarnedCoins(Math.floor(elapsedSeconds * anticoins_per_second));
+          // Calculate total USDC spent first
+          const hoursFraction = elapsedSeconds / 3600; // Convert seconds to hours
+          const usdcSpent = hoursFraction * cafe.usdc_per_hour; // Calculate USDC spent
+          
+          // Explicit Math.floor to ensure no minimums are applied
+          let coinsEarned = Math.floor(usdcSpent / 2); // 1 AntiCoin per 2 USDC - EXACT with no minimum
+          
+          // CRITICAL: Force to zero if less than 2 USDC was spent (no minimum awards)
+          if (usdcSpent < 2) {
+            console.log(`[Timer] Enforcing strict formula: ${(elapsedSeconds/60).toFixed(1)} min = ${usdcSpent.toFixed(3)} USDC is less than 2 USDC threshold = 0 coins`);
+            coinsEarned = 0;
+          } else {
+            console.log(`[Timer] Strict formula: ${(elapsedSeconds/60).toFixed(1)} min = ${usdcSpent.toFixed(3)} USDC = ${coinsEarned} coins`);
+          }
+          
+          setEarnedCoins(coinsEarned);
         }
       }, 1000);
     }

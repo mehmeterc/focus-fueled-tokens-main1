@@ -19,7 +19,7 @@ const CacheBuster = () => {
                     node.nodeType === Node.TEXT_NODE &&
                     node.textContent &&
                     (
-                      node.textContent.includes("earn 1 Anti coin for every 5 minutes") ||
+                      node.textContent.includes("earn 1 Anti coin for every utes") ||
                       node.textContent.includes("You'll earn 1 Anti")
                     )
                   ) {

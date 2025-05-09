@@ -249,17 +249,25 @@ const CheckIn = () => {
       const durationInSeconds = elapsedTime;
       const durationInMinutes = Math.floor(durationInSeconds / 60);
       
-      // Calculate earned coins based on 1 AntiCoin per 2 USDC spent
+      // Calculate earned coins based on 1 AntiCoin per 2 USDC spent - EXACT calculation with NO minimum
       let earnedCoins = 0;
       if (cafe && typeof cafe.usdc_per_hour === 'number') {
         const hoursFraction = durationInSeconds / 3600; // Convert seconds to hours
         const usdcSpent = hoursFraction * cafe.usdc_per_hour; // Calculate USDC spent
+        // Explicit Math.floor to ensure no minimums are applied
         earnedCoins = Math.floor(usdcSpent / 2); // 1 AntiCoin per 2 USDC
-        console.log(`New formula: ${durationInMinutes} minutes = ${usdcSpent.toFixed(2)} USDC = ${earnedCoins} AntiCoins`);
+        
+        // CRITICAL: Force to zero if less than 2 USDC was spent (no minimum awards)
+        if (usdcSpent < 2) {
+          console.log(`Enforcing strict formula: ${durationInMinutes} min = ${usdcSpent.toFixed(3)} USDC is less than 2 USDC threshold = 0 coins`);
+          earnedCoins = 0;
+        } else {
+          console.log(`Strict formula: ${durationInMinutes} min = ${usdcSpent.toFixed(3)} USDC = ${earnedCoins} coins`);
+        }
       } else {
-        // Fallback only if cafe data is missing
-        earnedCoins = Math.floor(durationInMinutes / 5);
-        console.warn('Using fallback formula! Cafe data missing!');
+        // Even the fallback should follow the same rule - NO MINIMUMS
+        earnedCoins = 0;
+        console.warn('Using fallback with zero coins - Cafe data missing!');
       }
 
       // Calculate payment
