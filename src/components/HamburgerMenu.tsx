@@ -56,7 +56,7 @@ export default function HamburgerMenu() {
             </button>
           </div>
           <ul className="flex-1 flex flex-col gap-2 px-6 py-4">
-            {/* Select Wallet button as first menu item */}
+            {/* 2. Select Wallet */}
             <li>
               <button 
                 className="w-full text-left py-2 px-3 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-medium rounded flex items-center justify-between"
@@ -74,16 +74,7 @@ export default function HamburgerMenu() {
                 </svg>
               </button>
             </li>
-            <li>
-              <Link to="/cafes" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link to="/history" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
-                History
-              </Link>
-            </li>
+            {/* 3. Anti Coins */}
             <li>
               <Link to="/anti-coins" className="flex items-center gap-2 py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
                 Anti Coins
@@ -95,15 +86,22 @@ export default function HamburgerMenu() {
                 </svg>
               </Link>
             </li>
-
-            <li>
-              <Link to="/profile" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
-                Profile
-              </Link>
-            </li>
+            {/* 4. My Registered Events */}
             <li>
               <Link to="/registered-events" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
                 My Registered Events
+              </Link>
+            </li>
+            {/* 5. History */}
+            <li>
+              <Link to="/history" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
+                History
+              </Link>
+            </li>
+            {/* 6. Profile */}
+            <li>
+              <Link to="/profile" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
+                Profile
               </Link>
             </li>
             <li className="mt-4 border-t pt-4">
