@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { toast } from 'sonner'; // Added toast import
+import { ArrowLeft } from 'lucide-react';
 
 const Auth = () => {
   const { user, signIn, signUp } = useAuth();
@@ -67,8 +68,18 @@ const Auth = () => {
       <Navbar />
       <main className="flex-grow flex items-center justify-center py-12">
         <div className="w-full max-w-md px-4">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h1 className="text-2xl font-bold text-center text-antiapp-purple mb-6">
+          <div className="bg-gradient-to-br from-antiapp-purple/10 to-antiapp-teal/5 rounded-xl shadow-xl p-8 border border-antiapp-purple/20 relative">
+            {/* Branded Back Button */}
+            <button
+              className="absolute left-4 top-4 flex items-center gap-1 text-antiapp-purple hover:text-antiapp-teal font-medium transition-colors"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              type="button"
+            >
+              <ArrowLeft size={20} />
+              Back
+            </button>
+            <h1 className="text-3xl font-extrabold text-center text-antiapp-purple mb-8 tracking-tight">
               Welcome to AntiApp
             </h1>
             
@@ -110,7 +121,7 @@ const Auth = () => {
                     
                     <Button
                       type="submit"
-                      className="w-full bg-antiapp-teal hover:bg-antiapp-teal/90"
+                      className="w-full bg-antiapp-teal hover:bg-antiapp-teal/90 text-white font-bold shadow-md"
                       disabled={loading}
                     >
                       {loading ? 'Signing in...' : 'Sign In'}
@@ -167,7 +178,7 @@ const Auth = () => {
                     
                     <Button
                       type="submit"
-                      className="w-full bg-antiapp-coral hover:bg-antiapp-coral/90"
+                      className="w-full bg-antiapp-coral hover:bg-antiapp-coral/90 text-white font-bold shadow-md"
                       disabled={loading}
                     >
                       {loading ? 'Creating Account...' : 'Create Account'}
