@@ -84,18 +84,18 @@ export default function EventDetails() {
     if (registering) return; 
     
     if (!user) {
-      toast.error('You must be signed in to register.');
+      toast.error('You must be signed in to register for events.');
       setShowConfirmModal(false);
       return;
     }
     
     if (balanceLoading) {
-      toast.error("Still loading your balance. Please try again.");
+      toast.error("Still loading your balance. Please try again in a moment.");
       return;
     }
     
     if (balance === null) {
-      toast.error("Could not retrieve your balance. Please try again.");
+      toast.error("Could not retrieve your balance. Please refresh the page and try again.");
       return;
     }
     
@@ -107,12 +107,18 @@ export default function EventDetails() {
     setRegistering(true);
     
     try {
-      const { data: existingReg } = await supabase
+      // 1. First check if already registered (prevent race conditions)
+      const { data: existingReg, error: checkError } = await supabase
         .from('event_registrations')
         .select('id')
         .eq('user_id', user.id)
-        .eq('event_id', event.id)
+        .eq('event_id', String(event.id)) // Ensure consistent string format
         .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking registration:', checkError);
+        throw new Error('Failed to verify existing registration');
+      }
       
       if (existingReg) {
         setAlreadyRegistered(true);
@@ -121,34 +127,60 @@ export default function EventDetails() {
         setRegistering(false);
         return;
       }
+
+      // 2. Create registration record FIRST to ensure we don't double-charge the user
+      // Only deduct balance if registration succeeds
+      const { error: regErr } = await supabase
+        .from('event_registrations')
+        .insert([{
+          user_id: user.id,
+          event_id: String(event.id), // Convert to string to match database expectations
+          registration_date: new Date().toISOString(),
+          price_paid: event.price
+        }]);
+        
+      if (regErr) {
+        console.error('Registration insert failed:', regErr);
+        throw new Error(`Couldn't create registration: ${regErr.message}`);
+      }
       
+      // Now deduct balance - if this fails, it's okay as user is already registered
+      // which is better than charging them but not registering them
       const newBalance = Number(balance) - event.price;
       const { error: balanceErr } = await supabase
         .from('profiles')
         .update({ anti_coin_balance: newBalance })
         .eq('id', user.id);
         
-      if (balanceErr) throw balanceErr;
+      if (balanceErr) {
+        console.error('Balance update failed:', balanceErr);
+        toast.error('Registration completed but balance update failed. Please report this to support.');
+        // Don't throw error here - we want to complete the registration flow
+      }
       
-      const { error: regErr } = await supabase
-        .from('event_registrations')
-        .insert([{
-          user_id: user.id,
-          event_id: String(event.id), 
-          registration_date: new Date().toISOString(), 
-          price_paid: event.price
-        }]);
-        
-      if (regErr) throw regErr;
-      
+      // If we got here, registration was successful
       setAlreadyRegistered(true);
       setRegistrationSuccess(true);
+      
+      // Refresh the balance after successful registration
+      fetchBalance();
+      
       toast.success(`Successfully registered for ${event.title}!`);
       
+      // Close modal after success
       setShowConfirmModal(false);
     } catch (error: any) {
       console.error('Registration failed:', error);
-      toast.error(`Registration failed: ${error.message || 'Please try again'}`);
+      
+      // Handle specific known errors
+      if (error.message?.includes('insufficient')) {
+        toast.error('Insufficient AntiCoins to complete this registration.');
+      } else if (error.message?.includes('already registered')) {
+        toast.info('You are already registered for this event.');
+        setAlreadyRegistered(true);
+      } else {
+        toast.error(`Registration failed: ${error.message || 'Please try again'}`);
+      }
     } finally {
       setRegistering(false);
     }
@@ -178,9 +210,11 @@ export default function EventDetails() {
             <Button
               className="w-full bg-antiapp-purple hover:bg-antiapp-purple/90 text-white font-bold py-3"
               onClick={handleOpenModal}
-              disabled={registering || alreadyRegistered || !user || balanceLoading}
+              disabled={registering || alreadyRegistered || balanceLoading}
             >
-              {alreadyRegistered ? (
+              {!user ? (
+                <>Sign in to Register ({event.price} <span className="font-bold">¢</span>)</>
+              ) : alreadyRegistered ? (
                 'Already Registered'
               ) : registering ? (
                 <>
