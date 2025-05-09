@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { setVisible } = useWalletModal();
 
   const handleSignOut = async () => {
     setOpen(false);
@@ -60,11 +62,7 @@ export default function HamburgerMenu() {
                 className="w-full text-left py-2 px-3 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-medium rounded flex items-center justify-between"
                 onClick={() => {
                   setOpen(false);
-                  // Open the wallet selector modal
-                  const walletButton = document.querySelector('.wallet-adapter-button');
-                  if (walletButton instanceof HTMLElement) {
-                    walletButton.click();
-                  }
+                  setVisible(true);
                 }}
               >
                 <span>Select Wallet</span>
