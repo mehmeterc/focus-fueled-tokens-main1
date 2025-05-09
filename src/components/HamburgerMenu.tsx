@@ -75,6 +75,11 @@ export default function HamburgerMenu() {
                 </svg>
               </Link>
             </li>
+            <li>
+              <Link to="/change-password" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
+                Change Password
+              </Link>
+            </li>
             <li className="mt-4 border-t pt-4">
               <button
                 className="w-full text-left py-2 text-red-600 hover:text-red-700 font-medium"
