@@ -1,16 +1,40 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // These environment variables should be defined in your .env file
-// For local development: .env.local
+// For local development: .env.local 
 // For production: Set in your hosting platform (e.g., Vercel)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials missing. Features requiring database access will not work.');
-}
+// Using direct debug logging to help diagnose issues
+console.log('Supabase URL available:', !!supabaseUrl);
+console.log('Supabase Anon Key available:', !!supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create a mock client that won't crash the app if credentials are missing
+const createMockClient = () => {
+  console.warn('⚠️ Using mock Supabase client - database features will not work');
+  return {
+    from: () => ({
+      select: () => ({ data: null, error: new Error('Supabase not configured') }),
+      insert: () => ({ data: null, error: new Error('Supabase not configured') }),
+      update: () => ({ data: null, error: new Error('Supabase not configured') }),
+      delete: () => ({ data: null, error: new Error('Supabase not configured') }),
+      eq: () => ({ data: null, error: new Error('Supabase not configured') }),
+      maybeSingle: () => ({ data: null, error: new Error('Supabase not configured') })
+    }),
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+      onAuthStateChange: () => ({ data: null, error: null, subscription: { unsubscribe: () => {} } }),
+      signOut: () => Promise.resolve({ error: null })
+    },
+    rpc: () => ({})
+  } as unknown as SupabaseClient;
+};
+
+// Export the appropriate client based on environment variables
+export const supabase = (!supabaseUrl || !supabaseAnonKey) 
+  ? createMockClient() 
+  : createClient(supabaseUrl, supabaseAnonKey);
 
 // Types for your database tables
 export type EventRegistration = {

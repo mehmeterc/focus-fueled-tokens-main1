@@ -3,10 +3,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import events from '../components/eventsData';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useAntiCoinBalance } from '@/hooks/useAntiCoinBalance';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useAntiCoinBalance } from '../hooks/useAntiCoinBalance';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,13 +21,12 @@ import {
 export default function EventDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const event = events.find(e => e.id === Number(id));
   const [registering, setRegistering] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
-  const { publicKey } = useWallet();
-  const balance = useAntiCoinBalance(publicKey?.toBase58());
-  const { user } = useAuth();
+  const { balance, loading: balanceLoading } = useAntiCoinBalance(user?.id);
 
   useEffect(() => {
     // If the modal is closed, ensure registering is false
@@ -75,12 +73,17 @@ export default function EventDetails() {
       setRegistering(false);
       return;
     }
+    if (balanceLoading) {
+      toast.error("Still loading your AntiCoin balance. Please try again in a moment.");
+      setRegistering(false);
+      return;
+    }
     if (balance === null) {
       toast.error("Could not retrieve your AntiCoin balance. Please try again.");
       setRegistering(false);
       return;
     }
-    if (balance < event.price) {
+    if (typeof balance === 'number' && balance < event.price) {
       toast.error('Insufficient AntiCoins to register for this event.');
       setRegistering(false);
       return;
@@ -137,14 +140,31 @@ export default function EventDetails() {
             <div className="text-xs text-gray-500 mb-4">By {event.organizer} @ {event.location}</div>
             <div className="text-lg text-gray-800 mb-6">{event.description}</div>
 
+            <Button
+              className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold"
+              onClick={handleOpenModal}
+              disabled={registering || alreadyRegistered || !user}
+            >
+              {alreadyRegistered ? (
+                'Already Registered'
+              ) : registering ? (
+                'Registering...'
+              ) : (
+                <>Register ({event.price} <span className="font-bold">¢</span>)</>
+              )}
+            </Button>
+            <p className="text-sm text-gray-500 mt-2">
+              {typeof balance === 'number' && balance < event.price && 'Insufficient AntiCoins!'}
+            </p>
+
             <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
               <AlertDialogTrigger asChild>
                 <Button
                   className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold"
                   onClick={handleOpenModal}
-                  disabled={registering || alreadyRegistered || publicKey === null}
+                  disabled={registering || alreadyRegistered || !user}
                 >
-                  {alreadyRegistered ? 'Registered' : (publicKey === null ? "Connect Wallet to Register" : (registering && !showConfirmModal ? 'Processing...' : `Register for ${event.price} AntiCoins`))}
+                  {alreadyRegistered ? 'Registered' : (!user ? "Sign in to Register" : (registering && !showConfirmModal ? 'Processing...' : `Register for ${event.price} AntiCoins`))}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
