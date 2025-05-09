@@ -48,13 +48,25 @@ const CheckIn = () => {
     return <Navigate to="/auth" />;
   }
 
+  // Force component to use the latest code by adding a version marker
+  const APP_VERSION = 'v2.0.1'; // Increment this whenever making changes to earn calculations
+  
   useEffect(() => {
     if (id) {
-      console.log("CheckIn page loaded for cafe:", id);
+      console.log(`CheckIn page loaded for cafe: ${id} (${APP_VERSION})`);
+      // Clear any cached session data that might contain old text
+      sessionStorage.removeItem('antiapp_checkin_text');
       fetchCafeData();
       checkExistingCheckIn();
     }
-  }, [id, user]);
+    
+    // Force refresh if the page has been cached
+    const lastRefresh = sessionStorage.getItem('last_checkin_refresh');
+    const now = Date.now().toString();
+    if (!lastRefresh || Date.now() - parseInt(lastRefresh) > 60000) {
+      sessionStorage.setItem('last_checkin_refresh', now);
+    }
+  }, [id, user, APP_VERSION]);
 
   async function fetchCafeData() {
     try {
@@ -411,7 +423,7 @@ const CheckIn = () => {
                     
                     <div className="mb-6">
                       <p className="text-lg font-semibold text-antiapp-purple">Session Time</p>
-                      <p className="text-3xl font-bold text-antiapp-teal">{formatTime(elapsedTime)}</p>
+                      <p className="text-3xl font-bold text-antiapp-teal" key="v2-timer-text">{formatTime(elapsedTime)}</p>
                     </div>
                     
                     <div className="text-center py-6">
