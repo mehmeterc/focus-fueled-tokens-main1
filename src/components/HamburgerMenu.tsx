@@ -89,7 +89,7 @@ export default function HamburgerMenu() {
             {/* 4. My Registered Events */}
             <li>
               <Link to="/registered-events" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
-                My Registered Events
+                My Events
               </Link>
             </li>
             {/* 5. History */}
