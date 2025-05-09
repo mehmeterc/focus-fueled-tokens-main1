@@ -1,5 +1,19 @@
 // Central event data for carousel and event pages
-const events = [
+
+// Define the Event type for use across the application
+export type Event = {
+  id: number;
+  title: string;
+  organizer: string;
+  date: string;
+  time: string;
+  location: string;
+  price: number;
+  image: string;
+  description: string;
+};
+
+const events: Event[] = [
   {
     id: 1,
     title: 'After Party by Jägermeister',

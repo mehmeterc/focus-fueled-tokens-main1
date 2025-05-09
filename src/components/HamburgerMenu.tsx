@@ -80,6 +80,11 @@ export default function HamburgerMenu() {
                 Profile
               </Link>
             </li>
+            <li>
+              <Link to="/registered-events" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
+                My Registered Events
+              </Link>
+            </li>
             <li className="mt-4 border-t pt-4">
               <button
                 className="w-full text-left py-2 text-red-600 hover:text-red-700 font-medium"

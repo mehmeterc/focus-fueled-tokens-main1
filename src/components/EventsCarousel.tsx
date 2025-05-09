@@ -3,19 +3,19 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import events, { Event } from './eventsData'; // Make sure Event type is exported from eventsData
+import events, { Event } from './eventsData';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase } from '@/supabaseClient'; // Import Supabase client
-import { useAuth } from '@/context/AuthContext'; // Import useAuth hook
-import { useAntiCoinBalance } from '@/hooks/useAntiCoinBalance'; // Import useAntiCoinBalance hook
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { useAntiCoinBalance } from '../hooks/useAntiCoinBalance';
 
 export default function EventsCarousel() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const navigate = useNavigate();
   const { user } = useAuth(); // Get current user
-  const { balance, fetchBalance: refreshAntiCoinBalance } = useAntiCoinBalance(user?.id); // Get user's AntiCoin balance
-  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(new Set());
-  const [loadingRegistration, setLoadingRegistration] = useState<Record<string, boolean>>({});
+  const { balance, fetchBalance } = useAntiCoinBalance(user?.id); // Get user's AntiCoin balance
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<number>>(new Set());
+  const [loadingRegistration, setLoadingRegistration] = useState<Record<number, boolean>>({});
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState<number[]>([]);
   const [canScrollPrev, setCanScrollPrev] = useState(false);
@@ -41,14 +41,14 @@ export default function EventsCarousel() {
         .from('event_registrations')
         .select('id')
         .eq('user_id', user.id)
-        .eq('event_id', event.id)
+        .eq('event_id', event.id.toString())
         .maybeSingle();
 
       if (checkError) throw checkError;
 
       if (existingRegistration) {
         toast.info('You are already registered for this event.');
-        setRegisteredEventIds(prev => new Set(prev).add(event.id));
+        setRegisteredEventIds(prev => new Set([...prev, event.id]));
         return;
       }
 
@@ -64,13 +64,17 @@ export default function EventsCarousel() {
       // Create registration
       const { error: registrationError } = await supabase
         .from('event_registrations')
-        .insert([{ user_id: user.id, event_id: event.id, registration_date: new Date().toISOString() }]);
+        .insert([{ 
+          user_id: user.id, 
+          event_id: event.id.toString(), 
+          registration_date: new Date().toISOString() 
+        }]);
 
       if (registrationError) throw registrationError;
 
       toast.success(`Successfully registered for ${event.title}! -${event.price} AntiCoins`);
-      setRegisteredEventIds(prev => new Set(prev).add(event.id));
-      await refreshAntiCoinBalance?.(); // Refresh AntiCoin balance display
+      setRegisteredEventIds(prev => new Set([...prev, event.id]));
+      fetchBalance(); // Refresh AntiCoin balance display
 
     } catch (error: any) {
       console.error('Registration failed:', error);
@@ -120,8 +124,10 @@ export default function EventsCarousel() {
 
       if (error) {
         console.error('Error fetching existing registrations:', error);
-      } else {
-        setRegisteredEventIds(new Set(data.map(r => r.event_id)));
+      } else if (data) {
+        // Convert string IDs from database to numbers and add to Set
+        const eventIds = data.map(r => parseInt(r.event_id));
+        setRegisteredEventIds(new Set(eventIds));
       }
     };
     fetchRegistrations();
