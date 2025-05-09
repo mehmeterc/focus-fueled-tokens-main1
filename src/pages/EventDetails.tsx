@@ -197,36 +197,30 @@ export default function EventDetails() {
             </p>
 
             <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
-              <AlertDialogTrigger asChild>
-                <Button
-                  className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold"
-                  onClick={handleOpenModal}
-                  disabled={registering || alreadyRegistered || !user}
-                >
-                  {alreadyRegistered ? 'Registered' : (!user ? "Sign in to Register" : (registering && !showConfirmModal ? 'Processing...' : `Register for ${event.price} AntiCoins`))}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Confirm Registration</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    You are about to register for "{event.title}". This will cost {event.price} AntiCoins.
-                    Your current balance is: {balanceLoading ? 'Loading...' : (typeof balance === 'number' ? `${balance} AntiCoins` : 'Unknown')}.
-                    Do you want to proceed?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={handleRegistrationCancel} disabled={registering}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleRegistrationConfirm} 
-                    disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
-                    className="bg-antiapp-purple hover:bg-antiapp-purple/90"
-                  >
-                    {registering ? 'Processing...' : 'Confirm Registration'}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>Confirm Registration</AlertDialogTitle>
+      <AlertDialogDescription>
+        You are about to register for "{event.title}". This will cost {event.price} AntiCoins.
+        Your current balance is: {balanceLoading ? 'Loading...' : (typeof balance === 'number' ? `${balance} AntiCoins` : 'Unknown')}.
+        Do you want to proceed?
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel onClick={handleRegistrationCancel} disabled={registering}>Cancel</AlertDialogCancel>
+      <AlertDialogAction 
+        onClick={async () => {
+          await handleRegistrationConfirm();
+          setShowConfirmModal(false);
+        }}
+        disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
+        className="bg-antiapp-purple hover:bg-antiapp-purple/90"
+      >
+        {registering ? 'Processing...' : 'Confirm Registration'}
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
 
           </div>
         </div>
