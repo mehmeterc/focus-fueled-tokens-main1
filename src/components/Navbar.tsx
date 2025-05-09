@@ -71,33 +71,29 @@ const Navbar = () => {
               </Link>
             )}
           </div>
-          {/* HamburgerMenu at far right */}
-          <div className="flex items-center">
-            {user && isCommunity() && (
-              <div className="ml-4">
-                <HamburgerMenu />
-              </div>
-            )}
-            {user && isMerchant() && (
-              <div className="ml-4">
-                <MerchantHamburgerMenu />
-              </div>
-            )}
+          {/* Right section with wallet and hamburger menu */}
+          <div className="flex items-center space-x-3">
+            {/* Main navigation links for desktop */}
+            <div className="hidden md:flex items-center space-x-4">
+              {user && (
+                <button
+                  className="text-gray-600 hover:text-antiapp-purple transition-colors"
+                  onClick={signOut}
+                >
+                  Sign Out
+                </button>
+              )}
+            </div>
+            
+            {/* Single hamburger menu for mobile */}
+            <div className="md:hidden">
+              {user && isCommunity() && <HamburgerMenu />}
+              {user && isMerchant() && <MerchantHamburgerMenu />}
+            </div>
+            
             {/* Solana wallet connect button always visible */}
             <SolanaWalletButton />
           </div>
-          {/* HamburgerMenu for community users on mobile */}
-          {user && isCommunity() && (
-            <div className="md:hidden">
-              <HamburgerMenu />
-            </div>
-          )}
-          {user && isMerchant() && (
-            <div className="md:hidden">
-              <MerchantHamburgerMenu />
-            </div>
-          )}
-          {/* Existing mobile menu for others */}
         </div>
         
         {/* Mobile navigation */}

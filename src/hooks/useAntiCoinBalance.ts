@@ -28,10 +28,9 @@ export function useAntiCoinBalance(walletAddress?: string | null) {
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Mock balance - in a real app this would come from the blockchain
-      // This simulates a user having between 5-20 AntiCoins
-      const mockBalance = 5 + Math.floor(Math.random() * 15);
-      setBalance(mockBalance);
+      // Use a fixed balance of 35 AntiCoins to match the dashboard display
+      const fixedBalance = 35;
+      setBalance(fixedBalance);
     } catch (err: any) {
       console.error("Failed to fetch AntiCoin balance:", err);
       setError(err instanceof Error ? err : new Error(String(err)));

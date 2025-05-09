@@ -68,6 +68,8 @@ export default function EventDetails() {
   const handleRegistrationCancel = () => {
     setRegistering(false);
     setShowConfirmModal(false);
+    // Ensure any pending operations are cancelled
+    toast.dismiss();
   };
 
   const handleRegistrationConfirm = async () => {
@@ -196,7 +198,14 @@ export default function EventDetails() {
               {balanceLoading && 'Loading your balance...'}
             </p>
 
-            <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+            <AlertDialog 
+  open={showConfirmModal} 
+  onOpenChange={(open) => {
+    if (!open && !registering) {
+      handleRegistrationCancel();
+    }
+  }}
+>
   <AlertDialogContent>
     <AlertDialogHeader>
       <AlertDialogTitle>Confirm Registration</AlertDialogTitle>
@@ -206,17 +215,30 @@ export default function EventDetails() {
         Do you want to proceed?
       </AlertDialogDescription>
     </AlertDialogHeader>
-    <AlertDialogFooter>
-      <AlertDialogCancel onClick={handleRegistrationCancel} disabled={registering}>Cancel</AlertDialogCancel>
-      <AlertDialogAction 
-        onClick={async () => {
-          await handleRegistrationConfirm();
-          setShowConfirmModal(false);
-        }}
-        disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
-        className="bg-antiapp-purple hover:bg-antiapp-purple/90"
+    <AlertDialogFooter className="flex gap-2">
+      <AlertDialogCancel 
+        onClick={handleRegistrationCancel} 
+        disabled={registering}
+        className="flex-1"
       >
-        {registering ? 'Processing...' : 'Confirm Registration'}
+        Cancel
+      </AlertDialogCancel>
+      <AlertDialogAction 
+        onClick={handleRegistrationConfirm}
+        disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
+        className="bg-antiapp-purple hover:bg-antiapp-purple/90 flex-1"
+      >
+        {registering ? (
+          <>
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+          </>
+        ) : (
+          'Confirm Registration'
+        )}
       </AlertDialogAction>
     </AlertDialogFooter>
   </AlertDialogContent>
