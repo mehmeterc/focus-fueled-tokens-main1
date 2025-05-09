@@ -10,8 +10,9 @@ import CafeMap from '@/components/CafeMap';
 import CafeFilters from '@/components/CafeFilters';
 import EventsCarousel from '@/components/EventsCarousel';
 import { toast } from 'sonner';
-import { Loader2, List, Pin } from 'lucide-react';
+import { Loader2, List, Pin, Calendar, Laptop } from 'lucide-react';
 import { Toggle } from '@/components/ui/toggle';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const fetchCafes = async () => {
   const { data, error } = await supabase
@@ -109,44 +110,68 @@ const Cafes = () => {
       <Navbar />
       <main className="flex-grow">
         <div className="container mx-auto px-4 py-8">
-          <EventsCarousel />
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-antiapp-purple">Find Cafes</h1>
+          <h1 className="text-3xl font-bold text-antiapp-purple mb-6">Where Focus Becomes Currency</h1>
+          
+          <Tabs defaultValue="workspaces" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="workspaces" className="text-base flex items-center gap-2">
+                <Laptop className="h-5 w-5" /> 
+                <span>Find Workspaces</span>
+              </TabsTrigger>
+              <TabsTrigger value="events" className="text-base flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                <span>Community Events</span>
+              </TabsTrigger>
+            </TabsList>
             
-            <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-              <Toggle 
-                pressed={viewMode === 'list'} 
-                onPressedChange={() => setViewMode('list')}
-                className={`flex items-center gap-1 ${viewMode === 'list' ? 'bg-white shadow' : ''}`}
-              >
-                <List className="h-4 w-4" />
-                <span className="text-sm">List</span>
-              </Toggle>
-              <Toggle 
-                pressed={viewMode === 'map'} 
-                onPressedChange={() => setViewMode('map')}
-                className={`flex items-center gap-1 ${viewMode === 'map' ? 'bg-white shadow' : ''}`}
-              >
-                <Pin className="h-4 w-4" />
-                <span className="text-sm">Map</span>
-              </Toggle>
-            </div>
-          </div>
-          
-          <CafeFilters filters={filters} onFilterChange={handleFilterChange} />
-          
-          {isLoading ? (
-            <div className="flex justify-center items-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-antiapp-purple" />
-              <span className="ml-2 text-gray-600">Loading cafes...</span>
-            </div>
-          ) : (
-            viewMode === 'list' ? (
-              <CafeList cafes={filteredCafes} />
-            ) : (
-              <CafeMap cafes={filteredCafes} />
-            )
-          )}
+            <TabsContent value="workspaces" className="mt-0">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-700">Productive Cafe Spaces</h2>
+                
+                <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                  <Toggle 
+                    pressed={viewMode === 'list'} 
+                    onClick={() => setViewMode('list')}
+                    className={`flex items-center gap-1 ${viewMode === 'list' ? 'bg-white shadow' : ''}`}
+                  >
+                    <List className="h-4 w-4" />
+                    <span className="text-sm">List</span>
+                  </Toggle>
+                  <Toggle 
+                    pressed={viewMode === 'map'} 
+                    onClick={() => setViewMode('map')}
+                    className={`flex items-center gap-1 ${viewMode === 'map' ? 'bg-white shadow' : ''}`}
+                  >
+                    <Pin className="h-4 w-4" />
+                    <span className="text-sm">Map</span>
+                  </Toggle>
+                </div>
+              </div>
+              
+              <CafeFilters filters={filters} onFilterChange={handleFilterChange} />
+              
+              {isLoading ? (
+                <div className="flex justify-center items-center py-20">
+                  <Loader2 className="w-8 h-8 animate-spin text-antiapp-purple" />
+                  <span className="ml-2 text-gray-600">Loading workspaces...</span>
+                </div>
+              ) : (
+                viewMode === 'list' ? (
+                  <CafeList cafes={filteredCafes} />
+                ) : (
+                  <CafeMap cafes={filteredCafes} />
+                )
+              )}
+            </TabsContent>
+            
+            <TabsContent value="events" className="mt-0">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">Upcoming Events</h2>
+                <p className="text-gray-600 mb-6">Join these community events while working at our partner cafes</p>
+                <EventsCarousel />
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       <Footer />

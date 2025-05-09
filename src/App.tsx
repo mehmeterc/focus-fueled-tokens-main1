@@ -22,6 +22,7 @@ import MerchantSessions from "./pages/MerchantSessions";
 import Profile from "./pages/Profile";
 import RegisteredEvents from "./pages/RegisteredEvents";
 import EventDetails from "./pages/EventDetails";
+import FocusTimer from "./pages/FocusTimer";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,8 @@ const AppRoutes = () => {
       <Route path="/profile" element={user ? <Profile /> : <Navigate to="/auth" />} />
       <Route path="/events/:id" element={<EventDetails />} />
       <Route path="/registered-events" element={user ? <RegisteredEvents /> : <Navigate to="/auth" />} />
+      <Route path="/focus-timer" element={user ? <FocusTimer /> : <Navigate to="/auth" />} />
+      <Route path="/focus-timer/:cafeId" element={user ? <FocusTimer /> : <Navigate to="/auth" />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

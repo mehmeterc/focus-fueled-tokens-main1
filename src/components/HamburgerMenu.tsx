@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { Timer } from 'lucide-react';
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
@@ -67,6 +68,13 @@ export default function HamburgerMenu() {
               >
                 Select Wallet
               </button>
+            </li>
+            {/* Add Focus Timer link */}
+            <li>
+              <Link to="/focus-timer" className="flex items-center gap-2 py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
+                <Timer className="h-4 w-4 text-green-600" />
+                Focus Timer
+              </Link>
             </li>
             {/* 3. Anti Coins */}
             <li>
