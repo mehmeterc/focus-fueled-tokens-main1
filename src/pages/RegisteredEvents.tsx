@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import events, { Event } from '../components/eventsData';
+import PageLayout from '../components/PageLayout';
 
 export default function RegisteredEvents() {
   const { user } = useAuth();
@@ -95,70 +96,72 @@ export default function RegisteredEvents() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold text-antiapp-purple mb-6">My Registered Events</h1>
-      
-      {loading ? (
-        <div className="flex justify-center items-center h-40">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-antiapp-purple"></div>
-        </div>
-      ) : registeredEvents.length === 0 ? (
-        <div className="text-center py-10">
-          <h2 className="text-xl font-semibold text-gray-600 mb-4">You haven't registered for any events yet</h2>
-          <p className="text-gray-500 mb-6">Browse our upcoming events and register to participate!</p>
-          <Button 
-            onClick={() => navigate('/')}
-            className="bg-antiapp-purple hover:bg-antiapp-purple/90"
-          >
-            Explore Events
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {registeredEvents.map(event => (
-            <div 
-              key={event.id} 
-              className="bg-white rounded-lg shadow-md overflow-hidden border border-antiapp-purple/10 flex flex-col"
+    <PageLayout>
+      <div className="container mx-auto py-8 px-4">
+        <h1 className="text-3xl font-bold text-antiapp-purple mb-6">My Registered Events</h1>
+        
+        {loading ? (
+          <div className="flex justify-center items-center h-40">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-antiapp-purple"></div>
+          </div>
+        ) : registeredEvents.length === 0 ? (
+          <div className="text-center py-10">
+            <h2 className="text-xl font-semibold text-gray-600 mb-4">You haven't registered for any events yet</h2>
+            <p className="text-gray-500 mb-6">Browse our upcoming events and register to participate!</p>
+            <Button 
+              onClick={() => navigate('/cafes')}
+              className="bg-antiapp-purple hover:bg-antiapp-purple/90"
             >
-              <img 
-                src={event.image} 
-                alt={event.title} 
-                className="h-48 w-full object-cover"
-              />
-              <div className="p-4 flex flex-col flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="bg-antiapp-teal/10 text-antiapp-teal px-2 py-0.5 rounded text-xs font-semibold">
-                    {event.date} {event.time}
-                  </span>
-                  <span className="bg-antiapp-purple/10 text-antiapp-purple px-2 py-0.5 rounded text-xs font-semibold">
-                    {event.price} <span className="font-bold">¢</span>
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-antiapp-purple mb-1">{event.title}</h3>
-                <div className="text-xs text-gray-500 mb-2">By {event.organizer} @ {event.location}</div>
-                <p className="text-sm text-gray-600 mb-4 flex-1">{event.description}</p>
-                
-                <div className="flex gap-2 mt-auto">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-antiapp-purple text-antiapp-purple hover:bg-antiapp-purple/10"
-                    onClick={() => navigate(`/events/${event.id}`)}
-                  >
-                    View Details
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    className="flex-1"
-                    onClick={() => handleCancelRegistration(event.id)}
-                  >
-                    Cancel Registration
-                  </Button>
+              Explore Events
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {registeredEvents.map(event => (
+              <div 
+                key={event.id} 
+                className="bg-white rounded-lg shadow-md overflow-hidden border border-antiapp-purple/10 flex flex-col"
+              >
+                <img 
+                  src={event.image} 
+                  alt={event.title} 
+                  className="h-48 w-full object-cover"
+                />
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="bg-antiapp-teal/10 text-antiapp-teal px-2 py-0.5 rounded text-xs font-semibold">
+                      {event.date} {event.time}
+                    </span>
+                    <span className="bg-antiapp-purple/10 text-antiapp-purple px-2 py-0.5 rounded text-xs font-semibold">
+                      {event.price} <span className="font-bold">¢</span>
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-antiapp-purple mb-1">{event.title}</h3>
+                  <div className="text-xs text-gray-500 mb-2">By {event.organizer} @ {event.location}</div>
+                  <p className="text-sm text-gray-600 mb-4 flex-1">{event.description}</p>
+                  
+                  <div className="flex gap-2 mt-auto">
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-antiapp-purple text-antiapp-purple hover:bg-antiapp-purple/10"
+                      onClick={() => navigate(`/events/${event.id}`)}
+                    >
+                      View Details
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => handleCancelRegistration(event.id)}
+                    >
+                      Cancel Registration
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </PageLayout>
   );
 }

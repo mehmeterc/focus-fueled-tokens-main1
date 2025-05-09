@@ -6,16 +6,15 @@ import events from '../components/eventsData';
 import { useAntiCoinBalance } from '../hooks/useAntiCoinBalance';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import PageLayout from '../components/PageLayout';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 export default function EventDetails() {
@@ -41,7 +40,7 @@ export default function EventDetails() {
         .from('event_registrations')
         .select('id')
         .eq('user_id', user.id)
-        .eq('event_id', event.id)
+        .eq('event_id', String(event.id))
         .maybeSingle();
       
       if (error) throw error;
@@ -53,16 +52,18 @@ export default function EventDetails() {
 
   if (!event) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <h1 className="text-2xl font-bold text-antiapp-purple mb-4">Event Not Found</h1>
-        <Button onClick={() => navigate(-1)}>Go Back</Button>
-      </div>
+      <PageLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center">
+          <h1 className="text-2xl font-bold text-antiapp-purple mb-4">Event Not Found</h1>
+          <Button onClick={() => navigate(-1)}>Go Back</Button>
+        </div>
+      </PageLayout>
     );
   }
 
   const handleOpenModal = () => {
     if (!user) {
-      toast.error('You must be signed in to register.');
+      toast.error('You must be signed in to register for events.');
       return;
     }
     
@@ -187,36 +188,95 @@ export default function EventDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <button className="mb-4 text-antiapp-purple hover:text-antiapp-teal font-medium flex items-center gap-1" onClick={() => navigate(-1)}>
-          &#8592; Back
-        </button>
-        <div className="bg-white rounded-2xl shadow-xl border border-antiapp-purple/10 overflow-hidden">
-          <img src={event.image} alt={event.title} className="w-full h-64 object-cover" />
-          <div className="p-6">
-            <h1 className="text-3xl font-bold text-antiapp-purple mb-2">{event.title}</h1>
-            <div className="flex items-center gap-4 mb-2">
-              <span className="bg-antiapp-teal/10 text-antiapp-teal px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide">
-                {event.date} {event.time}
-              </span>
-              <span className="bg-antiapp-purple/10 text-antiapp-purple px-2 py-0.5 rounded text-xs font-semibold">
-                {event.price} <span className="font-bold">¢</span>
-              </span>
+    <PageLayout customBackUrl="/cafes">
+      <div className="min-h-screen">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <div className="overflow-hidden rounded-lg shadow-lg bg-white">
+            <div className="relative">
+              <img 
+                src={event.image} 
+                alt={event.title} 
+                className="w-full h-80 object-cover"
+              />
             </div>
-            <div className="text-xs text-gray-500 mb-4">By {event.organizer} @ {event.location}</div>
-            <div className="text-lg text-gray-800 mb-6">{event.description}</div>
+            <div className="p-6">
+              <h1 className="text-3xl font-bold text-antiapp-purple mb-2">{event.title}</h1>
+              <div className="flex items-center gap-4 mb-2">
+                <span className="bg-antiapp-teal/10 text-antiapp-teal px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide">
+                  {event.date} {event.time}
+                </span>
+                <span className="bg-antiapp-purple/10 text-antiapp-purple px-2 py-0.5 rounded text-xs font-semibold">
+                  {event.price} <span className="font-bold">¢</span>
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 mb-4">By {event.organizer} @ {event.location}</div>
+              <div className="text-lg text-gray-800 mb-6">{event.description}</div>
 
-            <Button
-              className="w-full bg-antiapp-purple hover:bg-antiapp-purple/90 text-white font-bold py-3"
-              onClick={handleOpenModal}
-              disabled={registering || alreadyRegistered || balanceLoading}
+              <Button
+                className="w-full bg-antiapp-purple hover:bg-antiapp-purple/90 text-white font-bold py-3"
+                onClick={handleOpenModal}
+                disabled={registering || alreadyRegistered || balanceLoading}
+              >
+                {!user ? (
+                  <>Sign in to Register ({event.price} <span className="font-bold">¢</span>)</>
+                ) : alreadyRegistered ? (
+                  'Already Registered'
+                ) : registering ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  <>Register ({event.price} <span className="font-bold">¢</span>)</>
+                )}
+              </Button>
+              <p className="text-sm text-gray-500 mt-2">
+                {typeof balance === 'number' && balance < event.price && 'Insufficient AntiCoins!'}
+                {balanceLoading && 'Loading your balance...'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <AlertDialog 
+        open={showConfirmModal} 
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCancel();
+          }
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center text-lg font-bold text-antiapp-purple">Confirm Registration</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              You are about to register for <span className="font-semibold">"{event.title}"</span>.<br/>
+              This will cost <span className="font-semibold">{event.price} AntiCoins</span>.<br/>
+              Your current balance is: <span className="font-semibold">{balanceLoading ? 'Loading...' : (typeof balance === 'number' ? `${balance} AntiCoins` : 'Unknown')}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 text-center">
+            Do you want to proceed with this registration?
+          </div>
+          <AlertDialogFooter className="flex gap-3 sm:gap-4">
+            <AlertDialogCancel 
+              onClick={handleCancel} 
+              disabled={registering}
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300"
             >
-              {!user ? (
-                <>Sign in to Register ({event.price} <span className="font-bold">¢</span>)</>
-              ) : alreadyRegistered ? (
-                'Already Registered'
-              ) : registering ? (
+              Cancel
+            </AlertDialogCancel>
+            <button 
+              onClick={handleConfirm}
+              disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
+              className="flex-1 justify-center flex items-center px-4 py-2 rounded-md font-medium text-white
+                bg-antiapp-purple hover:bg-antiapp-purple/90 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {registering ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -225,67 +285,12 @@ export default function EventDetails() {
                   Processing...
                 </>
               ) : (
-                <>Register ({event.price} <span className="font-bold">¢</span>)</>
+                'Confirm Registration'
               )}
-            </Button>
-            <p className="text-sm text-gray-500 mt-2">
-              {typeof balance === 'number' && balance < event.price && 'Insufficient AntiCoins!'}
-              {balanceLoading && 'Loading your balance...'}
-            </p>
-
-            <AlertDialog 
-  open={showConfirmModal} 
-  onOpenChange={(open) => {
-    if (!open) {
-      handleCancel();
-    }
-  }}
->
-  <AlertDialogContent className="sm:max-w-md">
-    <AlertDialogHeader>
-      <AlertDialogTitle className="text-center text-lg font-bold text-antiapp-purple">Confirm Registration</AlertDialogTitle>
-      <AlertDialogDescription className="text-center">
-        You are about to register for <span className="font-semibold">"{event.title}"</span>.<br/>
-        This will cost <span className="font-semibold">{event.price} AntiCoins</span>.<br/>
-        Your current balance is: <span className="font-semibold">{balanceLoading ? 'Loading...' : (typeof balance === 'number' ? `${balance} AntiCoins` : 'Unknown')}</span>.
-      </AlertDialogDescription>
-    </AlertDialogHeader>
-    <div className="py-4 text-center">
-      Do you want to proceed with this registration?
-    </div>
-    <AlertDialogFooter className="flex gap-3 sm:gap-4">
-      <AlertDialogCancel 
-        onClick={handleCancel} 
-        disabled={registering}
-        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300"
-      >
-        Cancel
-      </AlertDialogCancel>
-      <button 
-        onClick={handleConfirm}
-        disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
-        className="flex-1 justify-center flex items-center px-4 py-2 rounded-md font-medium text-white
-          bg-antiapp-purple hover:bg-antiapp-purple/90 disabled:opacity-50 disabled:pointer-events-none"
-      >
-        {registering ? (
-          <>
-            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Processing...
-          </>
-        ) : (
-          'Confirm Registration'
-        )}
-      </button>
-    </AlertDialogFooter>
-  </AlertDialogContent>
-</AlertDialog>
-
-          </div>
-        </div>
-      </div>
-    </div>
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PageLayout>
   );
 }
