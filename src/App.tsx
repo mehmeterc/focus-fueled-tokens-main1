@@ -19,7 +19,7 @@ import MerchantDashboard from "./pages/MerchantDashboard";
 import History from "./pages/History";
 import AntiCoins from "./pages/AntiCoins";
 import MerchantSessions from "./pages/MerchantSessions";
-import ChangePassword from "./pages/ChangePassword";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -66,7 +66,7 @@ const AppRoutes = () => {
       <Route path="/history" element={<History />} />
       <Route path="/anti-coins" element={<AntiCoins />} />
       <Route path="/merchant-sessions" element={<MerchantSessions />} />
-      <Route path="/change-password" element={user ? <ChangePassword /> : <Navigate to="/auth" />} />
+      <Route path="/profile" element={user ? <Profile /> : <Navigate to="/auth" />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

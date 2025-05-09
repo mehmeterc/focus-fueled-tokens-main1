@@ -70,8 +70,8 @@ export default function MerchantHamburgerMenu() {
               </Link>
             </li>
             <li>
-              <Link to="/change-password" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
-                Change Password
+              <Link to="/profile" className="block py-2 text-gray-700 hover:text-antiapp-teal font-medium" onClick={() => setOpen(false)}>
+                Profile
               </Link>
             </li>
             <li className="mt-4 border-t pt-4">
