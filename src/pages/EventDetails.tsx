@@ -148,15 +148,54 @@ export default function EventDetails() {
       // Now deduct balance - if this fails, it's okay as user is already registered
       // which is better than charging them but not registering them
       const newBalance = Number(balance) - event.price;
-      const { error: balanceErr } = await supabase
+      
+      // First, get current user profile to determine the correct balance field name
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .update({ anti_coin_balance: newBalance })
-        .eq('id', user.id);
-        
-      if (balanceErr) {
-        console.error('Balance update failed:', balanceErr);
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error getting profile for balance update:', profileError);
         toast.error('Registration completed but balance update failed. Please report this to support.');
-        // Don't throw error here - we want to complete the registration flow
+        // Continue with registration despite balance error
+      } else if (profileData) {
+        // Find out what the balance field is called
+        let balanceField = '';
+        
+        // Look for different possible balance field names
+        if ('balance' in profileData) {
+          balanceField = 'balance';
+        } else if ('anti_coin_balance' in profileData) {
+          balanceField = 'anti_coin_balance';
+        } else if ('anticoins' in profileData) {
+          balanceField = 'anticoins';
+        } else if ('anticoin_balance' in profileData) {
+          balanceField = 'anticoin_balance';
+        } else {
+          // If we can't find a balance field, log available fields for debugging
+          console.error('Available profile fields:', Object.keys(profileData));
+          toast.error('Registration completed but could not find balance field. Please report this to support.');
+          // Continue with registration despite balance error
+        }
+        
+        if (balanceField) {
+          // Now update the balance with the exact field name we found
+          const updateData: any = {};
+          updateData[balanceField] = newBalance;
+          
+          const { error: balanceErr } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', user.id);
+            
+          if (balanceErr) {
+            console.error('Balance update failed:', balanceErr);
+            toast.error('Registration completed but balance update failed. Please report this to support.');
+            // Don't throw error here - we want to complete the registration flow
+          }
+        }
       }
       
       // If we got here, registration was successful

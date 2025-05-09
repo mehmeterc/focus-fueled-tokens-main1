@@ -55,43 +55,89 @@ export default function RegisteredEvents() {
     if (!user) return;
 
     try {
-      // Delete the registration
-      const { error } = await supabase
+      // Get the event to find out how many coins to refund
+      const event = events.find(e => e.id === eventId);
+      if (!event) {
+        throw new Error('Event not found. Please try again.');
+      }
+
+      // First, get current user profile to get their balance
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error getting profile:', profileError);
+        throw new Error('Could not get your current balance');
+      }
+
+      // If there's no balance field, show an error with details for debugging
+      if (!profileData) {
+        console.error('Profile data not found:', profileData);
+        throw new Error('User profile not found');
+      }
+
+      // Find out what the balance field is called
+      let balanceField = '';
+      let currentBalance = 0;
+
+      // Look for different possible balance field names
+      if ('balance' in profileData) {
+        balanceField = 'balance';
+        currentBalance = profileData.balance;
+      } else if ('anti_coin_balance' in profileData) {
+        balanceField = 'anti_coin_balance';
+        currentBalance = profileData.anti_coin_balance;
+      } else if ('anticoins' in profileData) {
+        balanceField = 'anticoins';
+        currentBalance = profileData.anticoins;
+      } else if ('anticoin_balance' in profileData) {
+        balanceField = 'anticoin_balance';
+        currentBalance = profileData.anticoin_balance;
+      } else {
+        // If we can't find a balance field, log all field names for debugging
+        console.error('Available profile fields:', Object.keys(profileData));
+        throw new Error('Could not find balance field in profile');
+      }
+
+      // Calculate new balance
+      const newBalance = (currentBalance || 0) + event.price;
+      console.log(`Refunding ${event.price} coins. Current balance: ${currentBalance}, New balance: ${newBalance}`);
+
+      // Now update the balance with the exact field name we found
+      const updateData: any = {};
+      updateData[balanceField] = newBalance;
+
+      // Delete the registration and update the balance in a transaction-like approach
+      const { error: deleteError } = await supabase
         .from('event_registrations')
         .delete()
         .eq('user_id', user.id)
         .eq('event_id', eventId.toString());
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
 
-      // Update the UI
-      setRegisteredEvents(prev => prev.filter(event => event.id !== eventId));
-      toast.success('Event registration cancelled successfully');
+      // Update balance AFTER successful deletion
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', user.id);
 
-      // Refund AntiCoins (in a real app, this would be a transaction)
-      const event = events.find(e => e.id === eventId);
-      if (event) {
-        const { error: refundError } = await supabase
-          .from('profiles')
-          .select('anti_coin_balance')
-          .eq('id', user.id)
-          .single();
-
-        if (!refundError) {
-          // Add the event price back to the user's balance
-          await supabase
-            .from('profiles')
-            .update({ 
-              anti_coin_balance: supabase.rpc('increment', { 
-                amount: event.price 
-              }) 
-            })
-            .eq('id', user.id);
-        }
+      if (updateError) {
+        console.error('Error updating balance:', updateError);
+        // Still continue since registration was successfully canceled
+        toast.warning('Registration canceled but there was an issue refunding your AntiCoins. Please contact support.');
+      } else {
+        toast.success(`Event registration cancelled! ${event.price} AntiCoins have been refunded.`);
       }
+
+      // Update UI
+      setRegisteredEvents(prev => prev.filter(e => e.id !== eventId));
     } catch (error: any) {
       console.error('Error cancelling registration:', error);
-      toast.error(`Failed to cancel registration: ${error.message}`);
+      toast.error(`Failed to cancel registration: ${error.message || 'Unknown error'}`);
     }
   };
 

@@ -72,13 +72,20 @@ export default function AntiCoins() {
       
       setLoadingSpent(true);
       try {
+        console.log('Fetching event registrations for user:', user.id);
+        
         // Get all registered events for the current user
         const { data: registrations, error: regError } = await supabase
           .from('event_registrations')
-          .select('event_id, registered_at')
+          .select('*')
           .eq('user_id', user.id);
 
-        if (regError) throw regError;
+        if (regError) {
+          console.error('Error fetching registrations:', regError);
+          throw regError;
+        }
+
+        console.log('Found registrations:', registrations?.length || 0);
 
         // If there are registrations, transform them for display
         if (registrations && registrations.length > 0) {
@@ -86,17 +93,26 @@ export default function AntiCoins() {
           // For now, we'll use the mock events data
           const eventsWithPrices = registrations.map(reg => {
             const event = events.find(e => String(e.id) === reg.event_id);
+            if (!event) {
+              console.warn('Could not find event details for id:', reg.event_id);
+            }
+            
+            // Make sure to use the correct date field
+            const dateField = reg.registered_at || reg.registration_date || reg.created_at || reg.date;
+            
             return {
               id: reg.event_id,
-              title: event?.title || 'Event',
-              price: event?.price || 0,
-              date: new Date(reg.registered_at),
+              title: event?.title || 'Event ' + reg.event_id,
+              price: event?.price || 3, // Default to 3 if price not found
+              date: dateField ? new Date(dateField) : new Date(),
               type: 'event_registration'
             };
           });
           
+          console.log('Processed spent coins:', eventsWithPrices);
           setSpentCoins(eventsWithPrices);
         } else {
+          console.log('No registrations found');
           setSpentCoins([]);
         }
       } catch (error) {
@@ -107,6 +123,58 @@ export default function AntiCoins() {
     };
 
     fetchSpentCoins();
+  }, [user]);
+  
+  // Make sure we refresh this component when registrations change
+  useEffect(() => {
+    if (!user) return;
+    
+    const registrationsChannel = supabase
+      .channel('event_registrations_changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'event_registrations',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        console.log('Registration change detected, refreshing spent coins...');
+        const fetchSpentCoins = async () => {
+          try {
+            const { data: registrations, error: regError } = await supabase
+              .from('event_registrations')
+              .select('event_id, registered_at')
+              .eq('user_id', user.id);
+
+            if (regError) throw regError;
+
+            if (registrations && registrations.length > 0) {
+              const eventsWithPrices = registrations.map(reg => {
+                const event = events.find(e => String(e.id) === reg.event_id);
+                return {
+                  id: reg.event_id,
+                  title: event?.title || 'Event',
+                  price: event?.price || 0,
+                  date: new Date(reg.registered_at),
+                  type: 'event_registration'
+                };
+              });
+              
+              setSpentCoins(eventsWithPrices);
+            } else {
+              setSpentCoins([]);
+            }
+          } catch (error) {
+            console.error('Error refreshing spent coins:', error);
+          }
+        };
+        
+        fetchSpentCoins();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(registrationsChannel);
+    };
   }, [user]);
 
   // Group spent coins data by date for display
