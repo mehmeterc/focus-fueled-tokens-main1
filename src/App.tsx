@@ -23,6 +23,7 @@ import Profile from "./pages/Profile";
 import RegisteredEvents from "./pages/RegisteredEvents";
 import EventDetails from "./pages/EventDetails";
 import FocusTimer from "./pages/FocusTimer";
+import CacheBuster from "./force-updates/CacheBuster";
 
 const queryClient = new QueryClient();
 
@@ -89,6 +90,8 @@ const App = () => (
           <Sonner />
           <AuthProvider>
             <BrowserRouter>
+              {/* Add CacheBuster to actively remove any instances of the problematic text */}
+              <CacheBuster />
               <AppRoutes />
             </BrowserRouter>
           </AuthProvider>

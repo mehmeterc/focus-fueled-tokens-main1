@@ -365,7 +365,30 @@ const CheckIn = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <Navbar />
-      <main className="flex-grow">
+      <main className="flex-grow" ref={(el) => {
+        // Direct DOM fix to catch any stubborn cached text that still appears
+        if (el) {
+          setTimeout(() => {
+            const allParagraphs = el.querySelectorAll('p');
+            allParagraphs.forEach(p => {
+              if (p.innerText && (
+                p.innerText.includes('1 Anti coin for every 5 minutes') ||
+                p.innerText.includes('You\'ll earn 1 Anti')
+              )) {
+                console.log('Found and removing stubborn text:', p.innerText);
+                // Replace with the correct calculation from cafe data
+                if (cafe?.usdc_per_hour) {
+                  const minutesFor1Coin = (2 / cafe.usdc_per_hour * 60).toFixed(1);
+                  p.innerText = `Earn Anti coins based on focus time (1 coin per ${minutesFor1Coin} min)`;
+                } else {
+                  p.style.display = 'none'; // Hide if we can't calculate
+                }
+              }
+            });
+          }, 100); // Small delay to ensure DOM is fully loaded
+        }
+      }}>
+      
         <div className="container mx-auto px-4 py-8 max-w-2xl">
           <div className="mb-4">
             <Link to={`/cafe/${cafe.id}`} className="text-antiapp-teal hover:text-antiapp-teal/80">
