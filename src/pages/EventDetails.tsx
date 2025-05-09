@@ -1,14 +1,38 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import events from '@/components/eventsData';
+import events from '../components/eventsData';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useAntiCoinBalance } from '@/hooks/useAntiCoinBalance';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function EventDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const event = events.find(e => e.id === Number(id));
   const [registering, setRegistering] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const { publicKey } = useWallet();
+  const balance = useAntiCoinBalance(publicKey?.toBase58());
+
+  useEffect(() => {
+    // If the modal is closed, ensure registering is false
+    if (!showConfirmModal) {
+      setRegistering(false);
+    }
+  }, [showConfirmModal]);
 
   if (!event) {
     return (
@@ -19,11 +43,46 @@ export default function EventDetails() {
     );
   }
 
-  const handleRegister = () => {
-    setRegistering(true);
-    // Registration logic will be handled in the carousel/modal for now
-    setTimeout(() => setRegistering(false), 1000);
+  const handleOpenModal = () => {
+    setRegistering(true); // Show loading state on button
+    setShowConfirmModal(true);
   };
+
+  const handleRegistrationConfirm = () => {
+    setShowConfirmModal(false); // Close modal first
+
+    if (balance === null) {
+      toast.error("Could not retrieve your AntiCoin balance. Please try again.");
+      setRegistering(false);
+      return;
+    }
+
+    if (balance < event.price) {
+      toast.error('Insufficient AntiCoins to register for this event.');
+      setRegistering(false);
+      return;
+    }
+
+    // Simulate AntiCoin deduction
+    // In a real app, you would call a backend service here
+    console.log(`Simulating deduction of ${event.price} AntiCoins for ${publicKey?.toBase58()}`);
+    
+    // Placeholder for actual deduction logic
+    const simulatedDeductionSuccess = true; // Assume success for now
+
+    if (simulatedDeductionSuccess) {
+      toast.success(`Successfully registered for ${event.title}! ${event.price} AntiCoins would be deducted.`);
+      // Potentially update balance locally or refetch, though useAntiCoinBalance should handle refetching if dependencies change
+    } else {
+      toast.error("Registration failed. Please try again.");
+    }
+    setRegistering(false);
+  };
+
+  const handleRegistrationCancel = () => {
+    setShowConfirmModal(false);
+    setRegistering(false);
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -45,13 +104,38 @@ export default function EventDetails() {
             </div>
             <div className="text-xs text-gray-500 mb-4">By {event.organizer} @ {event.location}</div>
             <div className="text-lg text-gray-800 mb-6">{event.description}</div>
-            <Button
-              className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold"
-              onClick={handleRegister}
-              disabled={registering}
-            >
-              {registering ? 'Registering...' : `Register for ${event.price} AntiCoins`}
-            </Button>
+
+            <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold"
+                  onClick={handleOpenModal}
+                  disabled={registering || publicKey === null} 
+                >
+                  {publicKey === null ? "Connect Wallet to Register" : (registering && !showConfirmModal ? 'Processing...' : `Register for ${event.price} AntiCoins`)}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm Registration</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You are about to register for "{event.title}". This will cost {event.price} AntiCoins.
+                    Your current balance is: {balance === null ? 'Loading...' : `${balance} AntiCoins`}.
+                    Do you want to proceed?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={handleRegistrationCancel} disabled={registering && showConfirmModal}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleRegistrationConfirm} 
+                    disabled={registering && showConfirmModal || balance === null || balance < event.price}
+                  >
+                    {registering && showConfirmModal ? 'Confirming...' : 'Confirm & Register'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
           </div>
         </div>
       </div>

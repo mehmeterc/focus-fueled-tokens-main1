@@ -8,7 +8,7 @@ const events = [
     time: '22:00',
     location: 'Arena Berlin',
     price: 4,
-    image: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
+    image: 'https://unsplash.com/de/fotos/multiethnische-gruppe-junger-leute-die-spass-haben-und-nachts-in-einer-bar-karaoke-singen-der-fokus-liegt-auf-dem-schwarzen-mann-2MnoxgkfEeA',
     description: 'Exclusive after party with live DJs, neon lights, and drinks. Join the fun!'
   },
   {
