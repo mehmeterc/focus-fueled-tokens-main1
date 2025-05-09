@@ -26,30 +26,30 @@ export default function EventDetails() {
   const [registering, setRegistering] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
-  const { balance, loading: balanceLoading } = useAntiCoinBalance(user?.id);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const { balance, loading: balanceLoading, fetchBalance } = useAntiCoinBalance(user?.id);
 
   useEffect(() => {
-    // If the modal is closed, ensure registering is false
-    if (!showConfirmModal) {
-      setRegistering(false);
-    }
-  }, [showConfirmModal]);
+    checkRegistrationStatus();
+  }, [user, event]);
 
-  // Check if already registered
-  useEffect(() => {
-    const checkRegistration = async () => {
-      if (!user || !event) return;
+  const checkRegistrationStatus = async () => {
+    if (!user || !event) return;
+    
+    try {
       const { data, error } = await supabase
         .from('event_registrations')
         .select('id')
         .eq('user_id', user.id)
         .eq('event_id', event.id)
         .maybeSingle();
-      if (data) setAlreadyRegistered(true);
-      else setAlreadyRegistered(false);
-    };
-    checkRegistration();
-  }, [user, event]);
+      
+      if (error) throw error;
+      setAlreadyRegistered(!!data);
+    } catch (error) {
+      console.error('Failed to check registration status:', error);
+    }
+  };
 
   if (!event) {
     return (
@@ -61,94 +61,95 @@ export default function EventDetails() {
   }
 
   const handleOpenModal = () => {
-    setRegistering(true); // Show loading state on button
+    if (!user) {
+      toast.error('You must be signed in to register.');
+      return;
+    }
+    
+    if (alreadyRegistered) {
+      toast.info('You are already registered for this event.');
+      return;
+    }
+    
+    fetchBalance();
     setShowConfirmModal(true);
   };
 
-  const handleRegistrationCancel = () => {
-    setRegistering(false);
+  const handleCancel = () => {
     setShowConfirmModal(false);
-    // Ensure any pending operations are cancelled
-    toast.dismiss();
+    setRegistering(false);
   };
 
-  const handleRegistrationConfirm = async () => {
+  const handleConfirm = async () => {
+    if (registering) return; 
+    
     if (!user) {
       toast.error('You must be signed in to register.');
-      setRegistering(false);
       setShowConfirmModal(false);
       return;
     }
     
     if (balanceLoading) {
-      toast.error("Still loading your AntiCoin balance. Please try again in a moment.");
-      setRegistering(false);
-      setShowConfirmModal(false);
+      toast.error("Still loading your balance. Please try again.");
       return;
     }
     
     if (balance === null) {
-      toast.error("Could not retrieve your AntiCoin balance. Please try again.");
-      setRegistering(false);
-      setShowConfirmModal(false);
+      toast.error("Could not retrieve your balance. Please try again.");
       return;
     }
     
     if (typeof balance === 'number' && balance < event.price) {
-      toast.error('Insufficient AntiCoins to register for this event.');
-      setRegistering(false);
-      setShowConfirmModal(false);
+      toast.error(`Insufficient AntiCoins. You need ${event.price} AntiCoins, but have ${balance}.`);
       return;
     }
     
-    // Keep modal open until registration is complete to show processing state
-    // Check again if already registered (race condition prevention)
+    setRegistering(true);
+    
     try {
-      const { data: existing, error: checkErr } = await supabase
+      const { data: existingReg } = await supabase
         .from('event_registrations')
         .select('id')
         .eq('user_id', user.id)
-        .eq('event_id', event.id.toString())
+        .eq('event_id', event.id)
         .maybeSingle();
-
-      if (checkErr) throw checkErr;
-
-      if (existing) {
-        toast.info('You are already registered for this event.');
+      
+      if (existingReg) {
         setAlreadyRegistered(true);
+        toast.info('You are already registered for this event.');
         setShowConfirmModal(false);
         setRegistering(false);
         return;
       }
-
-      // Deduct AntiCoins (should use a transaction ideally)
+      
       const newBalance = Number(balance) - event.price;
       const { error: balanceErr } = await supabase
         .from('profiles')
         .update({ anti_coin_balance: newBalance })
         .eq('id', user.id);
-
+        
       if (balanceErr) throw balanceErr;
-
-      // Create registration
+      
       const { error: regErr } = await supabase
         .from('event_registrations')
-        .insert([{ 
-          user_id: user.id, 
-          event_id: event.id.toString(), 
-          registration_date: new Date().toISOString() 
+        .insert([{
+          user_id: user.id,
+          event_id: event.id,
+          registered_at: new Date().toISOString(),
+          price_paid: event.price
         }]);
-
+        
       if (regErr) throw regErr;
-
-      // Success!
-      toast.success(`Successfully registered for ${event.title}! -${event.price} AntiCoins`);
+      
       setAlreadyRegistered(true);
+      setRegistrationSuccess(true);
+      toast.success(`Successfully registered for ${event.title}!`);
+      
+      setShowConfirmModal(false);
     } catch (error: any) {
       console.error('Registration failed:', error);
-      toast.error(`Registration failed: ${error.message || 'Please try again.'}`);
+      toast.error(`Registration failed: ${error.message || 'Please try again'}`);
     } finally {
-      setShowConfirmModal(false);
       setRegistering(false);
     }
   };
@@ -201,32 +202,36 @@ export default function EventDetails() {
             <AlertDialog 
   open={showConfirmModal} 
   onOpenChange={(open) => {
-    if (!open && !registering) {
-      handleRegistrationCancel();
+    if (!open) {
+      handleCancel();
     }
   }}
 >
-  <AlertDialogContent>
+  <AlertDialogContent className="sm:max-w-md">
     <AlertDialogHeader>
-      <AlertDialogTitle>Confirm Registration</AlertDialogTitle>
-      <AlertDialogDescription>
-        You are about to register for "{event.title}". This will cost {event.price} AntiCoins.
-        Your current balance is: {balanceLoading ? 'Loading...' : (typeof balance === 'number' ? `${balance} AntiCoins` : 'Unknown')}.
-        Do you want to proceed?
+      <AlertDialogTitle className="text-center text-lg font-bold text-antiapp-purple">Confirm Registration</AlertDialogTitle>
+      <AlertDialogDescription className="text-center">
+        You are about to register for <span className="font-semibold">"{event.title}"</span>.<br/>
+        This will cost <span className="font-semibold">{event.price} AntiCoins</span>.<br/>
+        Your current balance is: <span className="font-semibold">{balanceLoading ? 'Loading...' : (typeof balance === 'number' ? `${balance} AntiCoins` : 'Unknown')}</span>.
       </AlertDialogDescription>
     </AlertDialogHeader>
-    <AlertDialogFooter className="flex gap-2">
+    <div className="py-4 text-center">
+      Do you want to proceed with this registration?
+    </div>
+    <AlertDialogFooter className="flex gap-3 sm:gap-4">
       <AlertDialogCancel 
-        onClick={handleRegistrationCancel} 
+        onClick={handleCancel} 
         disabled={registering}
-        className="flex-1"
+        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 border-gray-300"
       >
         Cancel
       </AlertDialogCancel>
-      <AlertDialogAction 
-        onClick={handleRegistrationConfirm}
+      <button 
+        onClick={handleConfirm}
         disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
-        className="bg-antiapp-purple hover:bg-antiapp-purple/90 flex-1"
+        className="flex-1 justify-center flex items-center px-4 py-2 rounded-md font-medium text-white
+          bg-antiapp-purple hover:bg-antiapp-purple/90 disabled:opacity-50 disabled:pointer-events-none"
       >
         {registering ? (
           <>
@@ -239,7 +244,7 @@ export default function EventDetails() {
         ) : (
           'Confirm Registration'
         )}
-      </AlertDialogAction>
+      </button>
     </AlertDialogFooter>
   </AlertDialogContent>
 </AlertDialog>
