@@ -66,7 +66,7 @@ const CafeList = ({ cafes }: CafeListProps) => {
                     </div>
                     <span className="text-xs">→</span>
                     <div className="flex items-center">
-                      <span className="text-xs font-semibold text-green-700">Earn: {Math.round(cafe.usdc_per_hour * 0.5)} AntiCoins/hr</span>
+                      <span className="text-xs font-semibold text-green-700">Earn: {Math.floor(cafe.usdc_per_hour / 2)} AntiCoins/hr</span>
                     </div>
                   </div>
                 </div>

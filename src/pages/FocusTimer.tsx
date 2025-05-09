@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Progress } from '../components/ui/progress';
 import { toast } from 'sonner';
 import { Timer, Play, Pause, StopCircle, Coffee, Coins, Clock, CheckCircle } from 'lucide-react';
 import PageLayout from '@/components/PageLayout';
@@ -97,11 +97,12 @@ export default function FocusTimer() {
         const elapsedSeconds = Math.floor((Date.now() - (startTimeRef.current || 0)) / 1000);
         setSessionTime(elapsedSeconds);
         
-        // Calculate earned coins (e.g., 1 coin per minute of focus)
+        // Calculate earned coins (1 AntiCoin per 2 USDC paid)
         if (cafe?.usdc_per_hour) {
-          // Assuming 50% of hourly rate converted to coins per hour
-          const rate = cafe.usdc_per_hour * 0.5 / 3600; // coins per second
-          setEarnedCoins(Math.floor(elapsedSeconds * rate));
+          // Convert hourly USDC rate to AntiCoins per second
+          const usdc_per_second = cafe.usdc_per_hour / 3600; // USDC per second
+          const anticoins_per_second = usdc_per_second / 2; // 1 AntiCoin per 2 USDC
+          setEarnedCoins(Math.floor(elapsedSeconds * anticoins_per_second));
         }
       }, 1000);
     }
@@ -260,7 +261,7 @@ export default function FocusTimer() {
                         <div>
                           <div className="text-sm font-medium">Earned AntiCoins</div>
                           <div className="text-xs text-gray-500">
-                            {cafe.usdc_per_hour ? `${(cafe.usdc_per_hour * 0.5).toFixed(1)} coins/hr rate` : 'Rate not set'}
+                            {cafe.usdc_per_hour ? `${Math.floor(cafe.usdc_per_hour / 2)} coins/hr rate` : 'Rate not set'}
                           </div>
                         </div>
                       </div>
