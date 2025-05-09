@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import CafeList from '@/components/CafeList';
 import CafeMap from '@/components/CafeMap';
 import CafeFilters from '@/components/CafeFilters';
+import EventsCarousel from '@/components/EventsCarousel';
 import { toast } from 'sonner';
 import { Loader2, List, Pin } from 'lucide-react';
 import { Toggle } from '@/components/ui/toggle';
@@ -108,6 +109,7 @@ const Cafes = () => {
       <Navbar />
       <main className="flex-grow">
         <div className="container mx-auto px-4 py-8">
+          <EventsCarousel />
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold text-antiapp-purple">Find Cafes</h1>
             
