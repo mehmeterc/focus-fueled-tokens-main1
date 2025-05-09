@@ -65,59 +65,91 @@ export default function EventDetails() {
     setShowConfirmModal(true);
   };
 
-  const handleRegistrationConfirm = async () => {
-    setShowConfirmModal(false); // Close modal first
+  const handleRegistrationCancel = () => {
+    setRegistering(false);
+    setShowConfirmModal(false);
+  };
 
+  const handleRegistrationConfirm = async () => {
     if (!user) {
       toast.error('You must be signed in to register.');
       setRegistering(false);
+      setShowConfirmModal(false);
       return;
     }
+    
     if (balanceLoading) {
       toast.error("Still loading your AntiCoin balance. Please try again in a moment.");
       setRegistering(false);
+      setShowConfirmModal(false);
       return;
     }
+    
     if (balance === null) {
       toast.error("Could not retrieve your AntiCoin balance. Please try again.");
       setRegistering(false);
+      setShowConfirmModal(false);
       return;
     }
+    
     if (typeof balance === 'number' && balance < event.price) {
       toast.error('Insufficient AntiCoins to register for this event.');
       setRegistering(false);
+      setShowConfirmModal(false);
       return;
     }
+    
+    // Keep modal open until registration is complete to show processing state
     // Check again if already registered (race condition prevention)
-    const { data: existing, error: checkErr } = await supabase
-      .from('event_registrations')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('event_id', event.id)
-      .maybeSingle();
-    if (existing) {
-      toast('Already registered for this event.');
-      setAlreadyRegistered(true);
-      setRegistering(false);
-      return;
-    }
-    // Register
-    const { error } = await supabase
-      .from('event_registrations')
-      .insert({ event_id: event.id, user_id: user.id, registered_at: new Date().toISOString() });
-    if (error) {
-      toast.error('Registration failed. Please try again.');
-    } else {
-      toast.success(`Successfully registered for ${event.title}! ${event.price} AntiCoins would be deducted.`);
-      setAlreadyRegistered(true);
-    }
-    setRegistering(false);
-  };
+    try {
+      const { data: existing, error: checkErr } = await supabase
+        .from('event_registrations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('event_id', event.id.toString())
+        .maybeSingle();
 
-  const handleRegistrationCancel = () => {
-    setShowConfirmModal(false);
-    setRegistering(false);
-  }
+      if (checkErr) throw checkErr;
+
+      if (existing) {
+        toast.info('You are already registered for this event.');
+        setAlreadyRegistered(true);
+        setShowConfirmModal(false);
+        setRegistering(false);
+        return;
+      }
+
+      // Deduct AntiCoins (should use a transaction ideally)
+      const newBalance = Number(balance) - event.price;
+      const { error: balanceErr } = await supabase
+        .from('profiles')
+        .update({ anti_coin_balance: newBalance })
+        .eq('id', user.id);
+
+      if (balanceErr) throw balanceErr;
+
+      // Create registration
+      const { error: regErr } = await supabase
+        .from('event_registrations')
+        .insert([{ 
+          user_id: user.id, 
+          event_id: event.id.toString(), 
+          registration_date: new Date().toISOString() 
+        }]);
+
+      if (regErr) throw regErr;
+
+      // Success!
+      toast.success(`Successfully registered for ${event.title}! -${event.price} AntiCoins`);
+      setAlreadyRegistered(true);
+    } catch (error: any) {
+      console.error('Registration failed:', error);
+      toast.error(`Registration failed: ${error.message || 'Please try again.'}`);
+    } finally {
+      setShowConfirmModal(false);
+      setRegistering(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -141,20 +173,27 @@ export default function EventDetails() {
             <div className="text-lg text-gray-800 mb-6">{event.description}</div>
 
             <Button
-              className="w-full bg-antiapp-purple hover:bg-antiapp-teal text-white font-bold"
+              className="w-full bg-antiapp-purple hover:bg-antiapp-purple/90 text-white font-bold py-3"
               onClick={handleOpenModal}
-              disabled={registering || alreadyRegistered || !user}
+              disabled={registering || alreadyRegistered || !user || balanceLoading}
             >
               {alreadyRegistered ? (
                 'Already Registered'
               ) : registering ? (
-                'Registering...'
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
               ) : (
                 <>Register ({event.price} <span className="font-bold">¢</span>)</>
               )}
             </Button>
             <p className="text-sm text-gray-500 mt-2">
               {typeof balance === 'number' && balance < event.price && 'Insufficient AntiCoins!'}
+              {balanceLoading && 'Loading your balance...'}
             </p>
 
             <AlertDialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
@@ -172,17 +211,18 @@ export default function EventDetails() {
                   <AlertDialogTitle>Confirm Registration</AlertDialogTitle>
                   <AlertDialogDescription>
                     You are about to register for "{event.title}". This will cost {event.price} AntiCoins.
-                    Your current balance is: {balance === null ? 'Loading...' : `${balance} AntiCoins`}.
+                    Your current balance is: {balanceLoading ? 'Loading...' : (typeof balance === 'number' ? `${balance} AntiCoins` : 'Unknown')}.
                     Do you want to proceed?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel onClick={handleRegistrationCancel} disabled={registering && showConfirmModal}>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel onClick={handleRegistrationCancel} disabled={registering}>Cancel</AlertDialogCancel>
                   <AlertDialogAction 
                     onClick={handleRegistrationConfirm} 
-                    disabled={registering && showConfirmModal || balance === null || balance < event.price}
+                    disabled={registering || balanceLoading || balance === null || (typeof balance === 'number' && balance < event.price)}
+                    className="bg-antiapp-purple hover:bg-antiapp-purple/90"
                   >
-                    {registering && showConfirmModal ? 'Confirming...' : 'Confirm & Register'}
+                    {registering ? 'Processing...' : 'Confirm Registration'}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

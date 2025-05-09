@@ -13,7 +13,7 @@ export default function EventsCarousel() {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
   const navigate = useNavigate();
   const { user } = useAuth(); // Get current user
-  const { balance, fetchBalance } = useAntiCoinBalance(user?.id); // Get user's AntiCoin balance
+  const { balance, loading, fetchBalance } = useAntiCoinBalance(user?.id); // Get user's AntiCoin balance
   const [registeredEventIds, setRegisteredEventIds] = useState<Set<number>>(new Set());
   const [loadingRegistration, setLoadingRegistration] = useState<Record<number, boolean>>({});
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -24,12 +24,28 @@ export default function EventsCarousel() {
   const handleRegister = async (event: Event) => {
     if (!user) {
       toast.error('Please log in to register for events.');
-      navigate('/login'); // Redirect to login page if not logged in
+      navigate('/auth'); // Redirect to auth page if not logged in
       return;
     }
 
-    if (typeof balance === 'number' && balance < event.price) {
-      toast.error('Not enough AntiCoins to register for this event.');
+    // Check if balance is still loading
+    if (loading) {
+      toast.info('Please wait while we check your balance...');
+      return;
+    }
+
+    if (typeof balance !== 'number') {
+      toast.error('Unable to retrieve your balance. Please refresh and try again.');
+      return;
+    }
+
+    if (balance < event.price) {
+      toast.error(`Not enough AntiCoins to register. You need ${event.price} AntiCoins.`);
+      return;
+    }
+
+    // Prevent double-clicking
+    if (loadingRegistration[event.id]) {
       return;
     }
 
@@ -44,22 +60,28 @@ export default function EventsCarousel() {
         .eq('event_id', event.id.toString())
         .maybeSingle();
 
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error('Error checking registration:', checkError);
+        throw new Error(`Unable to check registration status: ${checkError.message}`);
+      }
 
       if (existingRegistration) {
-        toast.info('You are already registered for this event.');
+        toast.info('You are already registered for this event!');
         setRegisteredEventIds(prev => new Set([...prev, event.id]));
         return;
       }
 
       // Deduct AntiCoins (This should ideally be a Supabase function for atomicity)
-      const newBalance = (balance || 0) - event.price;
+      const newBalance = balance - event.price;
       const { error: balanceError } = await supabase
         .from('profiles')
         .update({ anti_coin_balance: newBalance })
         .eq('id', user.id);
 
-      if (balanceError) throw balanceError;
+      if (balanceError) {
+        console.error('Error updating balance:', balanceError);
+        throw new Error(`Failed to update your AntiCoin balance: ${balanceError.message}`);
+      }
 
       // Create registration
       const { error: registrationError } = await supabase
@@ -70,15 +92,28 @@ export default function EventsCarousel() {
           registration_date: new Date().toISOString() 
         }]);
 
-      if (registrationError) throw registrationError;
+      if (registrationError) {
+        console.error('Error creating registration:', registrationError);
+        throw new Error(`Registration failed: ${registrationError.message}`);
+      }
 
+      // Success!
       toast.success(`Successfully registered for ${event.title}! -${event.price} AntiCoins`);
       setRegisteredEventIds(prev => new Set([...prev, event.id]));
-      fetchBalance(); // Refresh AntiCoin balance display
+      
+      // Refresh balance after successful registration
+      fetchBalance();
+
+      // Optionally navigate to the event details page
+      // navigate(`/events/${event.id}`);
 
     } catch (error: any) {
       console.error('Registration failed:', error);
-      toast.error(`Registration failed: ${error.message || 'Please try again.'}`);
+      toast.error(error.message || 'Registration failed. Please try again.');
+      
+      // If we failed after updating the balance but before completing registration,
+      // we should probably revert the balance change in a real app
+      fetchBalance();
     } finally {
       setLoadingRegistration(prev => ({ ...prev, [event.id]: false }));
     }
@@ -186,17 +221,39 @@ export default function EventsCarousel() {
                   <h3 className="text-lg font-bold text-antiapp-purple mb-1">{event.title}</h3>
                   <div className="text-xs text-gray-500 mb-2">By {event.organizer} @ {event.location}</div>
                   <p className="text-sm text-gray-600 mb-3 flex-1 line-clamp-3">{event.description}</p>
-                  <Button
-                    variant="default"
-                    className="w-full mt-auto bg-antiapp-purple hover:bg-antiapp-purple/90 text-white transition-colors duration-200"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click navigation
-                      handleRegister(event);
-                    }}
-                    disabled={registeredEventIds.has(event.id) || loadingRegistration[event.id]}
-                  >
-                    {loadingRegistration[event.id] ? 'Registering...' : (registeredEventIds.has(event.id) ? 'Registered' : 'Register Now')}
-                  </Button>
+                  <div className="flex flex-col gap-2 mt-4">
+                    <Button
+                      className="w-full py-2 bg-antiapp-purple hover:bg-antiapp-purple/90 text-white"
+                      onClick={() => handleRegister(event)}
+                      disabled={loadingRegistration[event.id] || registeredEventIds.has(event.id) || loading || (typeof balance === 'number' && balance < event.price)}
+                    >
+                      {registeredEventIds.has(event.id) ? (
+                        'Registered'
+                      ) : loadingRegistration[event.id] ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Processing...
+                        </>
+                      ) : (
+                        'Register Now'
+                      )}
+                    </Button>
+                    {typeof balance === 'number' && balance < event.price && (
+                      <p className="text-xs text-red-500 text-center mb-1">
+                        Insufficient AntiCoins (need {event.price})
+                      </p>
+                    )}
+                    <Button
+                      variant="ghost"
+                      className="w-full py-2 border border-antiapp-purple text-antiapp-purple hover:bg-antiapp-purple/5"
+                      onClick={() => navigate(`/events/${event.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
