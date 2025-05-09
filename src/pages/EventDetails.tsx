@@ -134,8 +134,8 @@ export default function EventDetails() {
         .from('event_registrations')
         .insert([{
           user_id: user.id,
-          event_id: event.id,
-          registered_at: new Date().toISOString(),
+          event_id: String(event.id), 
+          registration_date: new Date().toISOString(), 
           price_paid: event.price
         }]);
         
