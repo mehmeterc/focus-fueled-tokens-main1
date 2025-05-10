@@ -30,6 +30,32 @@ export default function FocusTimer() {
       navigate('/login');
       return;
     }
+    
+    // Check if user has an active session and redirect to it
+    const checkForActiveSession = async () => {
+      try {
+        // Don't redirect if already on a specific cafe timer
+        if (cafeId) return;
+        
+        const { data: sessionData, error } = await supabase
+          .from('check_ins')
+          .select('cafe_id')
+          .eq('user_id', user.id)
+          .is('check_out_time', null)
+          .single();
+          
+        if (sessionData && !error) {
+          // User has an active session, redirect to it
+          console.log('Active session found, redirecting to check-in page');
+          navigate(`/checkin/${sessionData.cafe_id}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Error checking for active session:', err);
+      }
+    };
+    
+    checkForActiveSession();
 
     // Fetch cafe details and check-in status
     const fetchCafeAndStatus = async () => {
