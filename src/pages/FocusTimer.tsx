@@ -20,6 +20,7 @@ export default function FocusTimer() {
   const [earnedCoins, setEarnedCoins] = useState(0);
   const [checkedIn, setCheckedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [checkingForSession, setCheckingForSession] = useState(true); // Prevent flash of "No Workspace Selected"
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -34,8 +35,13 @@ export default function FocusTimer() {
     // Check if user has an active session and redirect to it
     const checkForActiveSession = async () => {
       try {
+        setCheckingForSession(true); // Start checking - hide main content while checking
+        
         // Don't redirect if already on a specific cafe timer
-        if (cafeId) return;
+        if (cafeId) {
+          setCheckingForSession(false);
+          return;
+        }
         
         const { data: sessionData, error } = await supabase
           .from('check_ins')
@@ -47,11 +53,16 @@ export default function FocusTimer() {
         if (sessionData && !error) {
           // User has an active session, redirect to it
           console.log('Active session found, redirecting to check-in page');
+          // Don't set checkingForSession to false - keep loading state during navigation
           navigate(`/checkin/${sessionData.cafe_id}`);
           return;
         }
+        
+        // Only if no active session is found
+        setCheckingForSession(false);
       } catch (err) {
         console.error('Error checking for active session:', err);
+        setCheckingForSession(false); // Error case - show content
       }
     };
     
@@ -259,7 +270,7 @@ export default function FocusTimer() {
         <h1 className="text-3xl font-bold text-antiapp-purple mb-2 text-center">Focus Timer</h1>
         <p className="text-gray-600 text-center mb-8">Where Focus Becomes Currency</p>
         
-        {loading ? (
+        {loading || checkingForSession ? (
           <div className="flex justify-center items-center h-60">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-antiapp-purple"></div>
           </div>
