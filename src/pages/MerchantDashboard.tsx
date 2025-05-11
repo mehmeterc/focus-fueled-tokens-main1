@@ -143,7 +143,8 @@ const MerchantDashboard = () => {
         total_capacity: 50,
         available_capacity: 50,
         distance: 0,
-        amenities: ['wifi', 'power', 'drinks']
+        amenities: ['wifi', 'power', 'drinks'],
+        usdc_per_hour: '0'
       });
     },
     onError: (error: any) => {
