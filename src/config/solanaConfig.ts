@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, SystemProgram } from '@solana/web3.js';
 
 // --- Constants --- //
 
@@ -14,15 +14,15 @@ export const USDC_MINT_ADDRESS = new PublicKey('Gh9ZwEmdkyNcLxlGPAhL2cjeYjiraDbP
 export const USDC_DECIMALS = 6; // USDC typically has 6 decimals
 
 // AntiCoin Information (Placeholder - will be created later)
-export const ANTICOIN_MINT_ADDRESS = new PublicKey('ANTIxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); // Replace with actual AntiCoin mint address after creation
+export const ANTICOIN_MINT_ADDRESS = SystemProgram.programId; // VALID PLACEHOLDER
 export const ANTICOIN_DECIMALS = 9; // Example: 9 decimals for AntiCoin
 
 // AntiCoin Solana Program (Placeholder - will be deployed later)
-export const ANTICOIN_PROGRAM_ID = new PublicKey('PROGxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); // Replace with actual program ID after deployment
+export const ANTICOIN_PROGRAM_ID = SystemProgram.programId; // VALID PLACEHOLDER
 
 // Treasury Wallet Address (where USDC payments will go)
 // Generate a new keypair for this or use an existing organizational wallet
-export const TREASURY_WALLET_ADDRESS = new PublicKey('TREAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'); // Replace with your app's treasury wallet
+export const TREASURY_WALLET_ADDRESS = SystemProgram.programId; // VALID PLACEHOLDER. Replace with your app's treasury wallet
 
 // Hourly rate for focus time in USDC (used for AntiCoin calculation)
 // This should match the rate used in your application if it's fixed,
