@@ -567,18 +567,18 @@ const CheckIn = () => {
                         <Progress value={progressToNextCoin} className="h-2">
                           <div 
                             className="absolute h-full bg-green-500 transition-all duration-500 ease-in-out" 
-                            style={{width: `${progressToNextCoin}%`, animation: progressToNextCoin > 95 ? 'pulse 1.5s infinite' : 'none'}}
+                            style={{width: `${progressToNextCoin}%` /* animation: progressToNextCoin > 95 ? 'pulse 1.5s infinite' : 'none' */}} // Removed pulse animation for now
                           />
                         </Progress>
                       </div>
                       
-                      <style jsx>{`
+                      {/* <style jsx>{`
                         @keyframes pulse {
                           0% { opacity: 0.7; }
                           50% { opacity: 1; }
                           100% { opacity: 0.7; }
                         }
-                      `}</style>
+                      `}</style> */}
                     </div>
                     
                     {cafe && typeof cafe.usdc_per_hour === 'number' && (
