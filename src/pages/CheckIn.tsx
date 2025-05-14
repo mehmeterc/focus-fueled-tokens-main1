@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -14,6 +13,26 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { QrCode, LogOut, Timer, Coins } from 'lucide-react';
+
+// Solana Imports
+import { useWallet } from '@solana/wallet-adapter-react';
+import {
+  Connection,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+} from '@solana/web3.js';
+import {
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+} from '@solana/spl-token';
+import {
+  SOLANA_RPC_ENDPOINT,
+  USDC_MINT_ADDRESS,
+  TREASURY_WALLET_ADDRESS,
+  USDC_DECIMALS,
+} from '@/config/solanaConfig';
 
 interface Cafe {
   id: string;
@@ -42,6 +61,7 @@ const CheckIn = () => {
   const [isCafeOwner, setIsCafeOwner] = useState(false);
   const { toast: toastHook } = useToast();
   const { user, profile, isMerchant, isCommunity } = useAuth();
+  const { wallet, publicKey, sendTransaction, connected } = useWallet(); // Solana wallet hook
 
   // Redirect to auth if not logged in
   if (!user) {
@@ -199,14 +219,72 @@ const CheckIn = () => {
   }, [isCheckedIn, sessionStartTime]);
 
   const handleCheckIn = async (qrValue: string, cafeId: string) => {
-    try {
-      // Verify the cafe ID matches
-      if (cafeId !== id) {
-        toast.error('The scanned QR code is for a different cafe');
+    if (!user || !cafe) return;
+
+    // Validate QR code
+    if (qrValue !== `check-in:${cafe.id}`) {
+      toast.error("Invalid QR code for check-in.");
+      return;
+    }
+
+    // --- Solana USDC Payment Logic ---
+    if (cafe.usdc_per_hour && cafe.usdc_per_hour > 0) {
+      if (!connected || !publicKey || !wallet) {
+        toast.error('Please connect your Solana wallet to pay and check in.');
         return;
       }
 
-      // Insert a new check-in record
+      try {
+        toast.info('Processing payment...');
+        const connection = new Connection(SOLANA_RPC_ENDPOINT, 'confirmed');
+        
+        // Using a small fixed amount for testing (0.001 USDC)
+        const paymentAmountLamports = 0.001 * (10 ** USDC_DECIMALS);
+
+        const fromTokenAccountAddress = await getAssociatedTokenAddress(
+          USDC_MINT_ADDRESS,
+          publicKey
+        );
+
+        const toTokenAccountAddress = await getAssociatedTokenAddress(
+          USDC_MINT_ADDRESS,
+          TREASURY_WALLET_ADDRESS 
+        );
+        
+        // Check if treasury ATA exists, if not, it needs to be created. 
+        // For simplicity, this example assumes it exists. 
+        // Production code might need to handle ATA creation for the treasury if it's the first time receiving USDC.
+
+        const transaction = new Transaction().add(
+          createTransferInstruction(
+            fromTokenAccountAddress,
+            toTokenAccountAddress,
+            publicKey,
+            paymentAmountLamports,
+            [],
+            TOKEN_PROGRAM_ID
+          )
+        );
+
+        transaction.feePayer = publicKey;
+        const blockhash = (await connection.getLatestBlockhash('finalized')).blockhash;
+        transaction.recentBlockhash = blockhash;
+
+        const signature = await sendTransaction(transaction, connection);
+        await connection.confirmTransaction({signature, blockhash, lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight }, 'confirmed');
+        
+        toast.success('Payment successful! Checking you in...');
+      } catch (error) {
+        console.error('Solana Payment Error:', error);
+        toast.error(`Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        return; // Stop check-in if payment fails
+      }
+    } else {
+      toast.info('This is a free check-in or cafe has no hourly rate set.');
+    }
+    // --- End Solana USDC Payment Logic ---
+
+    try {
       const { data, error } = await supabase
         .from('check_ins')
         .insert({
@@ -595,7 +673,7 @@ const CheckIn = () => {
         {/* QR Scanner Modal for community users */}
         {showQRScanner && isCommunity() && (
           <QRScanner 
-            onScan={handleQRScan}
+            onScan={(value) => scannerType === 'check-in' ? handleCheckIn(value, cafe.id) : handleCheckOut(value, cafe.id)}
             onClose={() => setShowQRScanner(false)}
             expectedType={scannerType}
           />
