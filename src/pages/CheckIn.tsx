@@ -494,13 +494,15 @@ const CheckIn = () => {
                         </Progress>
                       </div>
                       
-                      <style jsx>{`
+                      <style>
+                        {`
                         @keyframes pulse {
                           0% { opacity: 0.7; }
                           50% { opacity: 1; }
                           100% { opacity: 0.7; }
                         }
-                      `}</style>
+                        `}
+                      </style>
                     </div>
                     
                     {cafe && typeof cafe.usdc_per_hour === 'number' && (

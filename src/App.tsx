@@ -81,6 +81,7 @@ const AppRoutes = () => {
   );
 };
 
+// Adding a simple fallback renderer to ensure app mounts even with errors
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>

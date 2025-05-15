@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Timer } from 'lucide-react';
+import { SolanaConnectButton } from './SolanaConnectButton';
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
@@ -57,17 +58,15 @@ export default function HamburgerMenu() {
             </button>
           </div>
           <ul className="flex-1 flex flex-col gap-2 px-6 py-4">
-            {/* 2. Select Wallet */}
-            <li>
-              <button 
-                className="w-full text-center py-3 px-6 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-bold rounded-xl shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
-                onClick={() => {
-                  setOpen(false);
-                  setVisible(true);
-                }}
-              >
-                Select Wallet
-              </button>
+            {/* Wallet Connect Button */}
+            <li className="my-2">
+              <SolanaConnectButton />
+              {/* The SolanaConnectButton (WalletMultiButton) handles its own modal visibility.*/}
+              {/* If you need to explicitly close the hamburger menu when it's clicked, 
+                  you might need to pass setOpen(false) into it or handle it via context/global state 
+                  if WalletMultiButton doesn't propagate click events easily. 
+                  For now, we assume user clicks it, modal opens, then they manually close hamburger or it auto-closes on navigation. 
+              */}
             </li>
             {/* Add Focus Timer link */}
             <li>
@@ -105,7 +104,8 @@ export default function HamburgerMenu() {
                 Profile
               </Link>
             </li>
-            <li className="mt-4 border-t pt-4">
+            {/* Sign Out Button - Restored */}
+            <li className="mt-auto border-t pt-4">
               <button
                 className="w-full text-left py-2 text-red-600 hover:text-red-700 font-medium"
                 onClick={handleSignOut}

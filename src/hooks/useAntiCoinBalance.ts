@@ -3,7 +3,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 
 // Mock implementation for AntiCoin balance
 // In a real app, this would use actual Solana token functions
-const ANTI_COIN_MINT_STRING = process.env.REACT_APP_ANTI_COIN_MINT || 'AntiCoinMint11111111111111111111111111111111';
+const ANTI_COIN_MINT_STRING = process.env.REACT_APP_ANTI_COIN_MINT || 'Aw2wzYHb2p5TUhPPHxwZ3rvYzyvFwfa3cwZ266BnE57S';
 const RPC_URL = process.env.REACT_APP_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
 export function useAntiCoinBalance(walletAddress?: string | null) {

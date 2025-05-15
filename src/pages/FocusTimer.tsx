@@ -4,26 +4,64 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Progress } from '../components/ui/progress';
+import { Progress } from '@/components/ui/progress'; // Corrected path
 import { toast } from 'sonner';
 import { Timer, Play, Pause, StopCircle, Coffee, Coins, Clock, CheckCircle } from 'lucide-react';
 import PageLayout from '@/components/PageLayout';
+
+// Solana & App-specific Hooks/Context
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useUsdcPayment } from '@/hooks/useUsdcPayment';
+import { useAntiCoinContext } from '@/context/AntiCoinContext';
+import { USDC_DECIMALS, DEMO_CAFE_VIRTUAL_HOURLY_RATE_USDC, ANTICOIN_USDC_EQUIVALENCE } from '@/config/solanaConfig';
+// PublicKey might be needed for explicit type checks later, but hooks abstract direct use mostly.
+// import { PublicKey } from '@solana/web3.js';
 
 export default function FocusTimer() {
   const { cafeId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Solana Wallet, Payment, and AntiCoin Context Hooks
+  const { publicKey: solanaWalletPublicKey, connected: isSolanaWalletConnected, connect: connectSolanaWallet, connecting: isSolanaWalletConnecting } = useWallet();
+  const usdcPayment = useUsdcPayment();
+  const antiCoinContext = useAntiCoinContext();
+  const { setVisible: setWalletModalVisible } = useWalletModal();
+
   const [cafe, setCafe] = useState<any>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [sessionTime, setSessionTime] = useState(0); // in seconds
   const [earnedCoins, setEarnedCoins] = useState(0);
+  const [displayedRatePerHour, setDisplayedRatePerHour] = useState<number>(0);
   const [checkedIn, setCheckedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [sessionCostInUsdc, setSessionCostInUsdc] = useState(0);
   const [checkingForSession, setCheckingForSession] = useState(true); // Prevent flash of "No Workspace Selected"
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
+
+  // Effect to sync local earnedCoins state with AntiCoinContext for UI display
+  useEffect(() => {
+    if (antiCoinContext.isMining) {
+      setEarnedCoins(antiCoinContext.currentReward);
+    } else if (checkedIn && antiCoinContext.currentSession) {
+      // If checked in but paused, show the current reward from the session
+      setEarnedCoins(antiCoinContext.currentReward || 0);
+    } else if (!checkedIn) {
+      setEarnedCoins(0); // Reset when not checked in
+    }
+  }, [antiCoinContext.currentReward, antiCoinContext.isMining, checkedIn, antiCoinContext.currentSession]);
+
+  // Effect to calculate and set the displayed AntiCoin earning rate
+  useEffect(() => {
+    if (cafe) {
+      const cafeUsdcRate = cafe.usdc_per_hour > 0 ? cafe.usdc_per_hour : DEMO_CAFE_VIRTUAL_HOURLY_RATE_USDC;
+      const effectiveCoinsPerHour = cafeUsdcRate * ANTICOIN_USDC_EQUIVALENCE;
+      setDisplayedRatePerHour(effectiveCoinsPerHour);
+    }
+  }, [cafe]);
 
   useEffect(() => {
     if (!user) {
@@ -133,26 +171,7 @@ export default function FocusTimer() {
       intervalRef.current = setInterval(() => {
         const elapsedSeconds = Math.floor((Date.now() - (startTimeRef.current || 0)) / 1000);
         setSessionTime(elapsedSeconds);
-        
-        // Calculate earned coins (1 AntiCoin per 2 USDC paid) - EXACT calculation with NO minimums
-        if (cafe?.usdc_per_hour) {
-          // Calculate total USDC spent first
-          const hoursFraction = elapsedSeconds / 3600; // Convert seconds to hours
-          const usdcSpent = hoursFraction * cafe.usdc_per_hour; // Calculate USDC spent
-          
-          // Explicit Math.floor to ensure no minimums are applied
-          let coinsEarned = Math.floor(usdcSpent / 2); // 1 AntiCoin per 2 USDC - EXACT with no minimum
-          
-          // CRITICAL: Force to zero if less than 2 USDC was spent (no minimum awards)
-          if (usdcSpent < 2) {
-            console.log(`[Timer] Enforcing strict formula: ${(elapsedSeconds/60).toFixed(1)} min = ${usdcSpent.toFixed(3)} USDC is less than 2 USDC threshold = 0 coins`);
-            coinsEarned = 0;
-          } else {
-            console.log(`[Timer] Strict formula: ${(elapsedSeconds/60).toFixed(1)} min = ${usdcSpent.toFixed(3)} USDC = ${coinsEarned} coins`);
-          }
-          
-          setEarnedCoins(coinsEarned);
-        }
+        // EarnedCoins calculation is now handled by AntiCoinContext and synced via useEffect
       }, 1000);
     }
   };
@@ -167,6 +186,20 @@ export default function FocusTimer() {
   
   const handleCheckIn = async () => {
     if (!user || !cafeId) return;
+
+    // Check Solana wallet connection
+    if (!isSolanaWalletConnected || !solanaWalletPublicKey) {
+      toast.error('Please connect your Solana wallet to check in.');
+      // Optionally, trigger wallet modal if you import and use useWalletModal():
+      // const { setVisible } = useWalletModal(); setVisible(true);
+      return;
+    }
+
+    if (!cafe) { // Ensure cafe data is loaded before attempting to use it
+      toast.error('Cafe data not loaded yet. Please wait or refresh.');
+      return;
+    }
+
     
     try {
       setLoading(true);
@@ -178,17 +211,51 @@ export default function FocusTimer() {
           user_id: user.id,
           cafe_id: cafeId,
           start_time: new Date().toISOString(),
-          status: 'active'
-        });
+          status: 'active',
+          solana_wallet_address: solanaWalletPublicKey.toBase58() // Store wallet address
+        })
+        .select() // Fetch the inserted row, e.g., if you need its ID later
+        .single();
         
       if (error) throw error;
       
-      setCheckedIn(true);
-      startTimeRef.current = Date.now();
-      setSessionTime(0);
-      startTimer();
-      
-      toast.success('Checked in successfully! Focus timer started.');
+      // Start AntiCoin mining session
+      const cafeInfoForMining = {
+        id: cafe.id,
+        name: cafe.name,
+        usdcRatePerHour: cafe.usdc_per_hour || 0, // Ensure it's a number, default to 0 if null/undefined
+      };
+      const miningStarted = antiCoinContext.startMiningSession(cafeInfoForMining);
+
+      if (miningStarted) {
+        setCheckedIn(true);
+        startTimeRef.current = Date.now(); // Or use start_time from sessionInsertData for more precision
+        setSessionTime(0);
+        // antiCoinContext.isMining will be true now, so earnedCoins will update via effect or UI calculation
+        startTimer(); // Your existing timer logic to update UI
+        
+        toast.success('Checked in successfully! Focus timer & AntiCoin mining started.');
+      } else {
+        // Mining didn't start, could be due to an existing session. The hook provides its own toast.
+        // Potentially undo the Supabase check-in if starting mining is critical here.
+        // For now, we'll log a warning and let the Supabase check-in stand.
+        console.warn("Supabase check-in recorded, but AntiCoin mining session did not initiate (may already be active or wallet issue).");
+        // To ensure UI consistency if mining is absolutely required for check-in:
+        // if (sessionInsertData) { // 'sessionInsertData' would be 'data' from the supabase insert if .select().single() used
+        //    await supabase.from('focus_sessions').delete().eq('id', sessionInsertData.id);
+        //    toast.error("Failed to start AntiCoin mining. Check-in reverted. Please try again or check wallet.");
+        //    setLoading(false); // Ensure loading state is reset
+        //    return; // Exit handleCheckIn
+        // }
+        // If allowing check-in without mining starting (e.g. user has another session active elsewhere)
+        setCheckedIn(true); // Still reflect Supabase check-in in UI for this cafe
+        startTimeRef.current = Date.now(); 
+        setSessionTime(0);
+        startTimer();
+        // The useAntiCoinMining hook should have already displayed a toast if it couldn't start.
+        // Add a specific one here if you want to reinforce it from FocusTimer's perspective.
+        // toast.warning('Checked in for focus time, but AntiCoin mining has an issue (e.g., already active elsewhere).');
+      }
     } catch (error) {
       console.error('Error checking in:', error);
       toast.error('Failed to check in. Please try again.');
@@ -197,30 +264,119 @@ export default function FocusTimer() {
     }
   };
   
+  // Must be async to properly await the endMiningSession Promise
   const handleCheckOut = async () => {
-    if (!user || !cafeId) return;
-    
+    if (!user || !cafeId || !cafe) {
+      toast.error('User, Cafe ID, or Cafe details are missing. Cannot check out.');
+      return;
+    }
+
+    // Wallet check - important if payment is due
+    // if (!isSolanaWalletConnected || !solanaWalletPublicKey) {
+    //   toast.error('Please connect your Solana wallet to check out and process any payments.');
+    //   // Decide if you want to block checkout or allow it for free sessions / log unpaid
+    //   // return; 
+    // }
+
+    setLoading(true);
+    pauseTimer(); // Stop the UI timer updates
+
+    // 1. End AntiCoin mining session - with proper async/await
+    let actualEarnedAntiCoin = 0;
+    let sessionEndTime = new Date().toISOString(); // Default to now
+
     try {
-      setLoading(true);
-      pauseTimer();
+      // Properly await the Promise from endMiningSession
+      const miningSessionResult = await antiCoinContext.endMiningSession();
       
-      // Update the focus session with end time
+      if (miningSessionResult && miningSessionResult.sessionEnded) {
+        actualEarnedAntiCoin = miningSessionResult.reward;
+        sessionEndTime = new Date(miningSessionResult.endTime).toISOString();
+        console.log(`AntiCoin mining session ended. Calculated reward: ${actualEarnedAntiCoin}, End time: ${sessionEndTime}`);
+        // The useAntiCoinMining hook already provides a success toast for ending the session.
+      }
+      let solanaPaymentSignature: string | null = null; // To store payment tx signature
+      const finalSessionDurationSeconds = sessionTime; // Capture current sessionTime for calculations
+
+      if (cafe.usdc_per_hour && cafe.usdc_per_hour > 0 && finalSessionDurationSeconds > 0) {
+        const hoursFraction = finalSessionDurationSeconds / 3600;
+        // Ensure USDC_DECIMALS is used for rounding to avoid floating point issues for currency
+        setSessionCostInUsdc(parseFloat((hoursFraction * cafe.usdc_per_hour).toFixed(USDC_DECIMALS))); 
+      }
+      console.log(`Session duration: ${finalSessionDurationSeconds}s. Cafe rate: ${cafe.usdc_per_hour} USDC/hr. Calculated cost for payment: ${sessionCostInUsdc} USDC.`);
+
+      // --- PAYMENT LOGIC --- 
+      if (sessionCostInUsdc > 0) {
+        if (!isSolanaWalletConnected || !solanaWalletPublicKey) {
+          toast.error('Payment required, but Solana wallet is not connected. Session will be marked as unpaid. Please connect wallet and settle payment later if possible.');
+          // We are not returning here, so Supabase record will be updated without payment.
+          // Consider if you want to block checkout entirely: setLoading(false); return;
+        } else {
+          toast.info(`Processing payment of ${sessionCostInUsdc} USDC...`);
+          try {
+            const amountLamports = BigInt(Math.round(sessionCostInUsdc * Math.pow(10, USDC_DECIMALS)));
+            if (amountLamports <= 0) {
+                console.log('Calculated payment amount is zero or less. Skipping payment.');
+            } else {
+                const paymentSignature = await usdcPayment.handlePayment(
+                    amountLamports,
+                    `AntiApp Focus: ${cafe.name} - ${formatTime(finalSessionDurationSeconds)}`
+                );
+
+                if (paymentSignature) {
+                    solanaPaymentSignature = paymentSignature;
+                    toast.success(`Payment of ${sessionCostInUsdc} USDC successful!`);
+                    console.log('USDC Payment successful, signature:', solanaPaymentSignature);
+                } else {
+                    toast.error(`USDC Payment attempt failed. Session will be logged as unpaid/pending payment.`);
+                    console.error('USDC Payment attempt failed. No signature returned from handlePayment.');
+                }
+            }
+          } catch (paymentError: any) {
+            toast.error(`USDC Payment error: ${paymentError.message}. Session will be logged as unpaid/pending payment.`);
+            console.error('USDC Payment processing error caught in handleCheckOut:', paymentError);
+          }
+        }
+      } else {
+        console.log('Session cost is 0 USDC or less. No payment required.');
+      }
+
+      // 3. Update the focus session in Supabase with end time, duration, earned coins, and payment details
+      const updatePayload: { [key: string]: any } = {
+        end_time: sessionEndTime, // From miningSessionResult or current time if fallback
+        duration_seconds: finalSessionDurationSeconds,
+        earned_coins: actualEarnedAntiCoin,
+        status: 'completed',
+        usdc_payment_signature: solanaPaymentSignature, // null if no payment or failed
+      };
+
+      if (solanaPaymentSignature && sessionCostInUsdc > 0) {
+        updatePayload.usdc_amount_paid = sessionCostInUsdc;
+        updatePayload.payment_status = 'paid';
+      } else if (sessionCostInUsdc > 0 && (!solanaPaymentSignature || !isSolanaWalletConnected) ){
+        updatePayload.usdc_amount_paid = 0; // Or sessionCostInUsdc to show amount due
+        updatePayload.payment_status = 'pending_payment'; // Or 'failed', 'unpaid'
+      } else {
+        updatePayload.payment_status = 'not_applicable'; // For free sessions
+      }
+
       const { error: sessionError } = await supabase
         .from('focus_sessions')
-        .update({
-          end_time: new Date().toISOString(),
-          duration_seconds: sessionTime,
-          earned_coins: earnedCoins,
-          status: 'completed'
-        })
+        .update(updatePayload)
         .eq('user_id', user.id)
         .eq('cafe_id', cafeId)
-        .is('end_time', null);
+        .is('end_time', null); // Crucial: only update the currently active session for this user/cafe
         
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error('Error updating Supabase session:', sessionError);
+        // Even if Supabase session update fails, we might still want to credit AntiCoins if they were calculated
+        // But the session record itself will be inconsistent.
+        toast.error(`Failed to update session details in Supabase: ${sessionError.message}.`);
+        // Not throwing error here to allow AntiCoin crediting attempt below, but this is a partial failure.
+      }
       
-      // Add coins to user's balance
-      if (earnedCoins > 0) {
+      // 4. Add actual earned AntiCoins to user's profile balance
+      if (actualEarnedAntiCoin > 0) {
         // Get current balance
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
@@ -231,7 +387,7 @@ export default function FocusTimer() {
         if (profileError) throw profileError;
         
         const currentBalance = profileData?.anti_coin_balance || 0;
-        const newBalance = currentBalance + earnedCoins;
+        const newBalance = currentBalance + actualEarnedAntiCoin; // Use actualEarnedAntiCoin from mining context
         
         // Update balance
         const { error: updateError } = await supabase
@@ -242,11 +398,26 @@ export default function FocusTimer() {
         if (updateError) throw updateError;
       }
       
-      toast.success(`Focus session completed! You earned ${earnedCoins} AntiCoins.`);
+      // 5. Finalize UI and provide user feedback
+      if (!sessionError) { // Only show full success if Supabase session update was okay
+        toast.success(`Focus session completed! You earned ${actualEarnedAntiCoin} AntiCoins.`);
+      }
+      
+      if (solanaPaymentSignature) {
+        toast.info(`Payment of ${sessionCostInUsdc} USDC processed. Tx: ${solanaPaymentSignature.substring(0, 10)}...`);
+      } else if (sessionCostInUsdc > 0 && isSolanaWalletConnected) {
+        toast.warning('Session ended. Payment was attempted but not confirmed.');
+      } else if (sessionCostInUsdc > 0 && !isSolanaWalletConnected) {
+        toast.warning('Session ended. Payment required but wallet was not connected.');
+      }
+
       setCheckedIn(false);
       setSessionTime(0);
-      setEarnedCoins(0);
+      setEarnedCoins(0); // Resetting UI display; true balance is in profile/context
       startTimeRef.current = null;
+      setIsRunning(false); // Ensure timer is visually stopped and can be restarted fresh
+      
+      // antiCoinContext.clearCurrentSession(); // Ensure mining context is reset if not handled by endMiningSession()
       
     } catch (error) {
       console.error('Error checking out:', error);
@@ -310,22 +481,54 @@ export default function FocusTimer() {
                         <div>
                           <div className="text-sm font-medium">Earned AntiCoins</div>
                           <div className="text-xs text-gray-500">
-                            {cafe.usdc_per_hour ? `${Math.floor(cafe.usdc_per_hour / 2)} coins/hr rate` : 'Rate not set'}
+                            {displayedRatePerHour > 0 ? `${Math.floor(displayedRatePerHour)} AntiCoins/hr` : 'Rate not specified'}
                           </div>
                         </div>
                       </div>
-                      <div className="text-xl font-bold text-yellow-600">{earnedCoins}</div>
+                      <div className="text-xl font-bold text-yellow-600">{earnedCoins.toFixed(2)}</div> {/* Display with 2 decimal places if you allow fractional coins */}
                     </div>
+                    {antiCoinContext.isMining && (
+                      <div className="flex items-center justify-center text-xs text-green-600 mt-1 mb-3">
+                        <div className="animate-ping h-2 w-2 rounded-full bg-green-500 mr-2"></div>
+                        <span>Mining AntiCoin...</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between bg-blue-50 p-3 rounded-md"> {/* Changed bg from yellow to blue for a different section visual */} 
+                      <div className="flex items-center">
+                         <Clock className="h-5 w-5 text-blue-600 mr-2" /> 
+                         <div> 
+                           <div className="text-sm font-medium">USDC Cost / Hour</div> 
+                           <div className="text-xs text-gray-500">
+                             {cafe.usdc_per_hour ? `${cafe.usdc_per_hour.toFixed(2)} USDC/hr` : 'Free / Not set'}
+                           </div>
+                         </div>
+                      </div>
+                      {/* Optionally display current session cost if needed here */}
+                    </div>
+
+                    {isSolanaWalletConnected && solanaWalletPublicKey && (
+                      <div className="text-xs text-center text-gray-500 mt-3 mb-3">
+                        Wallet: {solanaWalletPublicKey.toBase58().substring(0, 4)}...{solanaWalletPublicKey.toBase58().slice(-4)}
+                      </div>
+                    )}
                   </div>
                   
                   {!checkedIn ? (
                     <Button 
-                      onClick={handleCheckIn} 
-                      disabled={loading} 
-                      className="w-full h-12 bg-green-500 hover:bg-green-600"
+                      onClick={() => {
+                        if (!isSolanaWalletConnected) {
+                          setWalletModalVisible(true);
+                        } else {
+                          handleCheckIn();
+                        }
+                      }}
+                      disabled={loading || antiCoinContext.isMining || isSolanaWalletConnecting} 
+                      className="w-full h-12 bg-green-500 hover:bg-green-600 disabled:opacity-50"
                     >
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      Check In & Start Focus
+                      {isSolanaWalletConnecting ? 'Connecting Wallet...' : 
+                       !isSolanaWalletConnected ? 'Connect Wallet to Check In' : 
+                       antiCoinContext.isMining ? 'Mining Active Elsewhere' : 'Check In & Start Focus'}
                     </Button>
                   ) : (
                     <div className="space-y-3">
