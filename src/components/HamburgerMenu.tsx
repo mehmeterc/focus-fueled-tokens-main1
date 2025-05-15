@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Timer } from 'lucide-react';
-import WalletConnectButton from './solana/WalletConnectButton';
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { setVisible } = useWalletModal();
 
   const handleSignOut = async () => {
     setOpen(false);
@@ -58,9 +59,15 @@ export default function HamburgerMenu() {
           <ul className="flex-1 flex flex-col gap-2 px-6 py-4">
             {/* 2. Select Wallet */}
             <li>
-              <div onClick={() => setOpen(false)} className="w-full text-center py-3 my-2 transform transition-all duration-200 hover:scale-[1.02]">
-                <WalletConnectButton />
-              </div>
+              <button 
+                className="w-full text-center py-3 px-6 my-2 bg-yellow-300 hover:bg-yellow-400 text-gray-800 font-bold rounded-xl shadow-md transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+                onClick={() => {
+                  setOpen(false);
+                  setVisible(true);
+                }}
+              >
+                Select Wallet
+              </button>
             </li>
             {/* Add Focus Timer link */}
             <li>
